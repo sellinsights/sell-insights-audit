@@ -110,7 +110,7 @@ export const SummaryTab = memo(function SummaryTab({ data }: { data: AuditData }
 
   return (
     <div className="space-y-8">
-      <SectionCard title="Overall Performance">
+      <SectionCard title="Overall Performance" sectionKey="summary_overall_performance">
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
           <KpiCard label="Total Revenue" value={formatCurrency(kpis.totalRevenue)} />
           <KpiCard label="Total Spend" value={formatCurrency(kpis.totalSpend)} />
@@ -123,6 +123,7 @@ export const SummaryTab = memo(function SummaryTab({ data }: { data: AuditData }
       <SectionCard
         title="Top 10 ASINs by Units Ordered"
         description="Business Report joined with SP Campaign data (Product Ad entity)."
+        sectionKey="summary_top_asins"
       >
         <DataTable columns={topAsinColumns} rows={topAsins} keyFn={(r) => r.asin} maxHeightPx={520} />
       </SectionCard>
@@ -130,6 +131,7 @@ export const SummaryTab = memo(function SummaryTab({ data }: { data: AuditData }
       <SectionCard
         title="Advertised ASIN Performance (SP only)"
         description="Sponsored Products, Entity = Product Ad, grouped by ASIN."
+        sectionKey="summary_advertised_asin"
       >
         <DataTable columns={advertisedColumns} rows={advertisedAsins} keyFn={(r) => r.asin} maxHeightPx={520} />
       </SectionCard>

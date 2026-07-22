@@ -32,7 +32,11 @@ export const AdAnalysisTab = memo(function AdAnalysisTab({ data, auditId }: { da
 
   return (
     <div className="space-y-8">
-      <SectionCard title="Ad Type Spend Split" description="Entity = Campaign, grouped by SP / SB / SD.">
+      <SectionCard
+        title="Ad Type Spend Split"
+        description="Entity = Campaign, grouped by SP / SB / SD."
+        sectionKey="ad_analysis_ad_type_split"
+      >
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
           <div className="lg:col-span-2">
             <DataTable columns={columns} rows={adTypeSplit.rows} footer={adTypeSplit.grandTotal} keyFn={(r) => r.label} />
@@ -41,7 +45,7 @@ export const AdAnalysisTab = memo(function AdAnalysisTab({ data, auditId }: { da
         </div>
       </SectionCard>
 
-      <SectionCard title="Auto vs Manual (SP only)" description={autoVerdict}>
+      <SectionCard title="Auto vs Manual (SP only)" description={autoVerdict} sectionKey="ad_analysis_auto_manual">
         <DataTable
           columns={metricsColumns("Targeting Type")}
           rows={autoManualSplit.rows}
@@ -50,11 +54,12 @@ export const AdAnalysisTab = memo(function AdAnalysisTab({ data, auditId }: { da
         />
       </SectionCard>
 
-      <BrandedVsNonBrandedSection auditId={auditId} initialData={brandedSplit} />
+      <BrandedVsNonBrandedSection auditId={auditId} initialData={brandedSplit} sectionKey="ad_analysis_branded" />
 
       <SectionCard
         title="SP Match Type Analysis"
         description="Entity = Keyword or Product Targeting, grouped by final match type."
+        sectionKey="ad_analysis_sp_match_type"
       >
         <DataTable
           columns={metricsColumns("Match Type")}
@@ -67,6 +72,7 @@ export const AdAnalysisTab = memo(function AdAnalysisTab({ data, auditId }: { da
       <SectionCard
         title="SB Match Type Analysis"
         description="Entity = Keyword or Product Targeting, grouped by final match type."
+        sectionKey="ad_analysis_sb_match_type"
       >
         <DataTable
           columns={metricsColumns("Match Type")}
@@ -76,7 +82,11 @@ export const AdAnalysisTab = memo(function AdAnalysisTab({ data, auditId }: { da
         />
       </SectionCard>
 
-      <SectionCard title="Placements (SP only)" description="Entity = Bidding Adjustment, grouped by placement.">
+      <SectionCard
+        title="Placements (SP only)"
+        description="Entity = Bidding Adjustment, grouped by placement."
+        sectionKey="ad_analysis_placements"
+      >
         <DataTable
           columns={metricsColumns("Placement")}
           rows={placements.rows}
@@ -85,7 +95,11 @@ export const AdAnalysisTab = memo(function AdAnalysisTab({ data, auditId }: { da
         />
       </SectionCard>
 
-      <SectionCard title="Bidding Strategy (SP only)" description="Entity = Bidding Adjustment, grouped by bidding strategy.">
+      <SectionCard
+        title="Bidding Strategy (SP only)"
+        description="Entity = Bidding Adjustment, grouped by bidding strategy."
+        sectionKey="ad_analysis_bidding_strategy"
+      >
         <DataTable
           columns={metricsColumns("Bidding Strategy")}
           rows={biddingStrategy.rows}

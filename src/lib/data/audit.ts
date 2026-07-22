@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { AuditRow, Database } from "@/types/database";
 import { withAuthRetry } from "@/lib/supabase/authRetry";
+import { fetchAuditNotes } from "./notes";
 import {
   fetchAdTypeSplit,
   fetchAdvertisedAsinPerformance,
@@ -53,6 +54,9 @@ export interface AuditData {
     sbUnder5: WastedSpendSection;
     sbOver5: WastedSpendSection;
   };
+  /** section_key -> note content, one row per section, fetched in a single
+   * query and cached alongside everything else — see src/lib/data/notes.ts. */
+  notes: Record<string, string>;
 }
 
 /** Loads the whole dashboard as pre-aggregated rows — one RPC call per
@@ -91,6 +95,7 @@ export async function fetchAuditData(supabase: SupabaseClient<Database>, auditId
       spOver5,
       sbUnder5,
       sbOver5,
+      notes,
     ] = await Promise.all([
       fetchSummaryKpis(supabase, auditId),
       fetchTopAsins(supabase, auditId),
@@ -106,6 +111,7 @@ export async function fetchAuditData(supabase: SupabaseClient<Database>, auditId
       fetchWastedSpend(supabase, auditId, "sp", 6, null),
       fetchWastedSpend(supabase, auditId, "sb", 1, 5),
       fetchWastedSpend(supabase, auditId, "sb", 6, null),
+      fetchAuditNotes(supabase, auditId),
     ]);
     console.timeEnd("[PERF] fetchAuditData all RPC sections (parallel)");
 
@@ -122,6 +128,7 @@ export async function fetchAuditData(supabase: SupabaseClient<Database>, auditId
       biddingStrategy,
       brandedSplit,
       wastedSpend: { spUnder5, spOver5, sbUnder5, sbOver5 },
+      notes,
     };
   } catch (err) {
     console.error(`[PERF] fetchAuditData threw for ${auditId}:`, err);

@@ -44,9 +44,19 @@ const columns: Column<BleederRow>[] = [
   },
 ];
 
-function BleederTable({ title, description, rows }: { title: string; description: string; rows: BleederRow[] }) {
+function BleederTable({
+  title,
+  description,
+  rows,
+  sectionKey,
+}: {
+  title: string;
+  description: string;
+  rows: BleederRow[];
+  sectionKey: string;
+}) {
   return (
-    <SectionCard title={title} description={description}>
+    <SectionCard title={title} description={description} sectionKey={sectionKey}>
       <DataTable
         columns={columns}
         rows={rows}
@@ -148,24 +158,28 @@ export function BleedersBoard({ auditId }: { auditId: string }) {
             title="SP — Over $10 Spend, 0 Sales"
             description="Highest-priority cleanup: meaningful spend with zero orders. Top 100 by spend."
             rows={data.spOver10}
+            sectionKey="bleeders_sp_over10"
           />
           <div className="h-8" />
           <BleederTable
             title="SP — Under $10 Spend, 0 Sales"
             description="Lower-priority, but still worth a negative-targeting pass at scale. Top 100 by spend."
             rows={data.spUnder10}
+            sectionKey="bleeders_sp_under10"
           />
           <div className="h-8" />
           <BleederTable
             title="SB — Over $10 Spend, 0 Sales"
             description="Highest-priority cleanup: meaningful spend with zero orders. Top 100 by spend."
             rows={data.sbOver10}
+            sectionKey="bleeders_sb_over10"
           />
           <div className="h-8" />
           <BleederTable
             title="SB — Under $10 Spend, 0 Sales"
             description="Lower-priority, but still worth a negative-targeting pass at scale. Top 100 by spend."
             rows={data.sbUnder10}
+            sectionKey="bleeders_sb_under10"
           />
         </div>
       )}

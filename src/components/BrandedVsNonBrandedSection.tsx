@@ -46,9 +46,11 @@ interface BrandedSplitTrio {
 export function BrandedVsNonBrandedSection({
   auditId,
   initialData,
+  sectionKey,
 }: {
   auditId: string;
   initialData: BrandedSplitTrio;
+  sectionKey?: string;
 }) {
   const [scope, setScope] = useState<BrandedScope>("both");
   const [fetchedData, setFetchedData] = useState<BrandedSplitTrio | null>(null);
@@ -131,6 +133,7 @@ export function BrandedVsNonBrandedSection({
     <SectionCard
       title="Branded vs Non-Branded"
       description={loading ? "Loading…" : verdict}
+      sectionKey={sectionKey}
       actions={
         <div className="flex overflow-hidden rounded-md border border-neutral-300 text-xs font-semibold">
           {SCOPES.map((s) => (

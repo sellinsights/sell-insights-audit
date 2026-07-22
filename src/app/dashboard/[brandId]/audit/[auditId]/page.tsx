@@ -11,6 +11,7 @@ import { cacheKeys } from "@/lib/cache/cacheKeys";
 import { withTimeout } from "@/lib/withTimeout";
 import { AuditDashboard } from "@/components/AuditDashboard";
 import { RefreshDataButton } from "@/components/RefreshDataButton";
+import { NotesProvider } from "@/components/NotesContext";
 
 export interface AuditBundle extends AuditData {
   brandName: string | null;
@@ -215,7 +216,13 @@ export default function AuditPage() {
           </p>
         </div>
       ) : (
-        <AuditDashboard data={bundle} />
+        <NotesProvider
+          auditId={auditId}
+          initialNotes={bundle.notes ?? {}}
+          onNotesChange={(notes) => writeCache<AuditBundle>(cacheKey, { ...bundle, notes })}
+        >
+          <AuditDashboard data={bundle} />
+        </NotesProvider>
       )}
     </div>
   );

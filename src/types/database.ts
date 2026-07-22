@@ -151,6 +151,14 @@ export type BrandKeywordRow = {
   keyword: string;
 };
 
+export type AuditNoteRow = {
+  id: string;
+  audit_id: string;
+  section_key: string;
+  content: string;
+  updated_at: string;
+};
+
 type TableDef<Row, Insert, Update = Partial<Insert>> = {
   Row: Row;
   Insert: Insert;
@@ -208,6 +216,10 @@ export type Database = {
       brand_keywords: TableDef<
         BrandKeywordRow,
         Omit<BrandKeywordRow, "id"> & Partial<Pick<BrandKeywordRow, "id">>
+      >;
+      audit_notes: TableDef<
+        AuditNoteRow,
+        Omit<AuditNoteRow, "id" | "updated_at"> & Partial<Pick<AuditNoteRow, "id" | "updated_at">>
       >;
     };
     Views: Record<string, never>;

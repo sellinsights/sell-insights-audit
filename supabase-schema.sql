@@ -246,6 +246,21 @@ create table if not exists public.brand_keywords (
 
 create index if not exists brand_keywords_audit_id_idx on public.brand_keywords (audit_id);
 
+-- ----------------------------------------------------------------------------
+-- audit_notes — free-text notes per dashboard section (one row per
+-- audit_id + section_key, e.g. "summary_overall_performance"). The
+-- unique constraint below also serves as the audit_id lookup index — a
+-- separate index would just be a redundant prefix of the same btree.
+-- ----------------------------------------------------------------------------
+create table if not exists public.audit_notes (
+  id uuid primary key default gen_random_uuid(),
+  audit_id uuid not null references public.audits (id) on delete cascade,
+  section_key text not null,
+  content text default '',
+  updated_at timestamptz default now(),
+  unique (audit_id, section_key)
+);
+
 -- ============================================================================
 -- Row Level Security
 -- ============================================================================
@@ -259,6 +274,7 @@ alter table public.sd_campaign_data enable row level security;
 alter table public.sp_search_term_data enable row level security;
 alter table public.sb_search_term_data enable row level security;
 alter table public.brand_keywords enable row level security;
+alter table public.audit_notes enable row level security;
 
 -- brands: owner-only
 create policy "brands_select_own" on public.brands
@@ -332,6 +348,13 @@ create policy "sb_search_term_data_all_own_audit" on public.sb_search_term_data
   );
 
 create policy "brand_keywords_all_own_audit" on public.brand_keywords
+  for all using (
+    exists (select 1 from public.audits a where a.id = audit_id and a.created_by = auth.uid())
+  ) with check (
+    exists (select 1 from public.audits a where a.id = audit_id and a.created_by = auth.uid())
+  );
+
+create policy "audit_notes_all_own_audit" on public.audit_notes
   for all using (
     exists (select 1 from public.audits a where a.id = audit_id and a.created_by = auth.uid())
   ) with check (
