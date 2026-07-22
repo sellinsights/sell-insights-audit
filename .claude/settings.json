@@ -1,0 +1,35 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ps -p 84313 -o pid,etime,command)",
+      "Bash(ps -p 84313 -o pid,lstart,command)",
+      "Bash(kill 84313)",
+      "Bash(xargs -r kill -9)",
+      "Bash(xargs -I{} basename {})",
+      "Bash(curl -s -o /dev/null -w \"/login: %{http_code} time_total=%{time_total}s\\\\n\" http://localhost:3000/login)",
+      "Bash(curl -s -o /dev/null -w \"/dashboard \\(redirect\\): %{http_code} time_total=%{time_total}s\\\\n\" -L http://localhost:3000/dashboard)",
+      "Bash(curl -s -o /dev/null -w \"/dashboard/x/audit/y: %{http_code} time_total=%{time_total}s\\\\n\" -L \"http://localhost:3000/dashboard/x/audit/y\")",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" -L \"http://localhost:3000/dashboard/x\")",
+      "Bash(ps -p 87404 -o pid,lstart,command)",
+      "Bash(kill 87404)",
+      "Bash(ls -la ~/Downloads/ 2>/dev/null | head -50)",
+      "Read(//Users/hasanqayyum/Downloads//**)",
+      "Read(//Users/hasanqayyum/Downloads/**)",
+      "Bash(open /Users/hasanqayyum/sell-insights-audit/public)",
+      "Bash(sips -g pixelWidth -g pixelHeight -g format /Users/hasanqayyum/sell-insights-audit/public/sell-insights-logo.png.png)",
+      "Bash(sips -g hasAlpha /Users/hasanqayyum/sell-insights-audit/public/sell-insights-logo.png.png)",
+      "Bash(python3 -c \"from PIL import Image; im = Image.open\\('/Users/hasanqayyum/sell-insights-audit/public/sell-insights-logo.png.png'\\); print\\(im.mode, im.size\\)\")",
+      "Bash(python3)",
+      "Bash(ps -p 89365 -o pid,lstart,command)",
+      "Bash(kill 89365)",
+      "Bash(curl -s -o /dev/null -w \"logo-full.png: %{http_code}\\\\n\" http://localhost:3000/logo-full.png)",
+      "Bash(curl -s -o /dev/null -w \"logo-icon.png: %{http_code}\\\\n\" http://localhost:3000/logo-icon.png)",
+      "Bash(npx --yes playwright --version)",
+      "Bash(python3 -c \"import playwright\")",
+      "Bash(npx --yes playwright install chromium --with-deps)",
+      "Bash(npx --yes playwright screenshot --viewport-size=1280,900 http://localhost:3000/login /private/tmp/claude-501/-Users-hasanqayyum-sell-insights-audit/eee09824-cd14-4660-98dc-d6654c980cf3/scratchpad/login-page.png)",
+      "Bash(curl -s -o /tmp/test-logo.png -w \"HTTP %{http_code}, size %{size_download} bytes\\\\n\" \"http://localhost:3000/_next/image?url=%2Flogo-full.png&w=1920&q=75\")",
+      "Bash(npx --yes playwright screenshot --viewport-size=1280,900 http://localhost:3000/login /private/tmp/claude-501/-Users-hasanqayyum-sell-insights-audit/eee09824-cd14-4660-98dc-d6654c980cf3/scratchpad/login-page-2.png)"
+    ]
+  }
+}
