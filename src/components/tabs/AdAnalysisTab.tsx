@@ -15,14 +15,15 @@ const AdTypePieChart = dynamic(() => import("@/components/AdTypePieChart").then(
 });
 
 export const AdAnalysisTab = memo(function AdAnalysisTab({ data, auditId }: { data: AuditData; auditId: string }) {
-  const { adTypeSplit, autoManualSplit, spMatchTypes, sbMatchTypes, placements, biddingStrategy, brandedSplit } = data;
+  const { adTypeSplit, autoManualSplit, spMatchTypes, sbMatchTypes, placements, biddingStrategy, sdCostType, brandedSplit } =
+    data;
 
   const pieData = useMemo(
-    () => adTypeSplit.rows.map((r) => ({ name: r.label, value: r.spend })),
-    [adTypeSplit.rows]
+    () => (adTypeSplit?.rows ?? []).map((r) => ({ name: r.label, value: r.spend })),
+    [adTypeSplit]
   );
 
-  const autoRow = autoManualSplit.rows.find((r) => r.label === "Auto");
+  const autoRow = autoManualSplit?.rows.find((r) => r.label === "Auto");
   const autoVerdict =
     (autoRow?.pctOfSpend ?? 0) < 10
       ? "Auto spend under 10% — good"
@@ -39,7 +40,7 @@ export const AdAnalysisTab = memo(function AdAnalysisTab({ data, auditId }: { da
       >
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
           <div className="lg:col-span-2">
-            <DataTable columns={columns} rows={adTypeSplit.rows} footer={adTypeSplit.grandTotal} keyFn={(r) => r.label} />
+            <DataTable columns={columns} rows={adTypeSplit?.rows ?? []} footer={adTypeSplit?.grandTotal} keyFn={(r) => r.label} />
           </div>
           <AdTypePieChart data={pieData} />
         </div>
@@ -48,8 +49,8 @@ export const AdAnalysisTab = memo(function AdAnalysisTab({ data, auditId }: { da
       <SectionCard title="Auto vs Manual (SP only)" description={autoVerdict} sectionKey="ad_analysis_auto_manual">
         <DataTable
           columns={metricsColumns("Targeting Type")}
-          rows={autoManualSplit.rows}
-          footer={autoManualSplit.grandTotal}
+          rows={autoManualSplit?.rows ?? []}
+          footer={autoManualSplit?.grandTotal}
           keyFn={(r) => r.label}
         />
       </SectionCard>
@@ -63,8 +64,8 @@ export const AdAnalysisTab = memo(function AdAnalysisTab({ data, auditId }: { da
       >
         <DataTable
           columns={metricsColumns("Match Type")}
-          rows={spMatchTypes.rows}
-          footer={spMatchTypes.grandTotal}
+          rows={spMatchTypes?.rows ?? []}
+          footer={spMatchTypes?.grandTotal}
           keyFn={(r) => r.label}
         />
       </SectionCard>
@@ -76,8 +77,26 @@ export const AdAnalysisTab = memo(function AdAnalysisTab({ data, auditId }: { da
       >
         <DataTable
           columns={metricsColumns("Match Type")}
-          rows={sbMatchTypes.rows}
-          footer={sbMatchTypes.grandTotal}
+          rows={sbMatchTypes?.rows ?? []}
+          footer={sbMatchTypes?.grandTotal}
+          keyFn={(r) => r.label}
+        />
+      </SectionCard>
+
+      <SectionCard
+        title="SD Cost Type Analysis"
+        description="Entity = Campaign, grouped by Cost Type."
+        sectionKey="ad_analysis_sd_cost_type"
+      >
+        {/* Defensive: undefined for an audit dashboard cached before this
+            section existed, or if fn_sd_cost_type isn't deployed yet — falls
+            back to an empty table (DataTable's own "No data" state) instead
+            of crashing. normalizeAuditData() upstream should always fill
+            this in, but this guard is cheap insurance either way. */}
+        <DataTable
+          columns={metricsColumns("Cost Type")}
+          rows={sdCostType?.rows ?? []}
+          footer={sdCostType?.grandTotal}
           keyFn={(r) => r.label}
         />
       </SectionCard>
@@ -89,8 +108,8 @@ export const AdAnalysisTab = memo(function AdAnalysisTab({ data, auditId }: { da
       >
         <DataTable
           columns={metricsColumns("Placement")}
-          rows={placements.rows}
-          footer={placements.grandTotal}
+          rows={placements?.rows ?? []}
+          footer={placements?.grandTotal}
           keyFn={(r) => r.label}
         />
       </SectionCard>
@@ -102,8 +121,8 @@ export const AdAnalysisTab = memo(function AdAnalysisTab({ data, auditId }: { da
       >
         <DataTable
           columns={metricsColumns("Bidding Strategy")}
-          rows={biddingStrategy.rows}
-          footer={biddingStrategy.grandTotal}
+          rows={biddingStrategy?.rows ?? []}
+          footer={biddingStrategy?.grandTotal}
           keyFn={(r) => r.label}
         />
       </SectionCard>

@@ -220,7 +220,7 @@ export async function fetchAdvertisedAsinPerformance(
 
 async function fetchLabeledRows(
   supabase: SupabaseClient<Database>,
-  fnName: "fn_ad_type_split" | "fn_auto_manual_split" | "fn_placements" | "fn_bidding_strategy",
+  fnName: "fn_ad_type_split" | "fn_auto_manual_split" | "fn_placements" | "fn_bidding_strategy" | "fn_sd_cost_type",
   auditId: string
 ): Promise<{ rows: LabeledMetricsRow[]; grandTotal: LabeledMetricsRow | undefined }> {
   console.time(`[PERF] rpc ${fnName} ${auditId}`);
@@ -247,6 +247,9 @@ export const fetchPlacements = (supabase: SupabaseClient<Database>, auditId: str
 
 export const fetchBiddingStrategy = (supabase: SupabaseClient<Database>, auditId: string) =>
   fetchLabeledRows(supabase, "fn_bidding_strategy", auditId);
+
+export const fetchSdCostType = (supabase: SupabaseClient<Database>, auditId: string) =>
+  fetchLabeledRows(supabase, "fn_sd_cost_type", auditId);
 
 export async function fetchMatchTypeAnalysis(
   supabase: SupabaseClient<Database>,

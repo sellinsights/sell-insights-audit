@@ -147,6 +147,7 @@ function parseSdCampaigns(sheet: XLSX.WorkSheet | null): ParsedSdCampaignRow[] {
         state: str(field(lookup, "State")),
         asin: str(field(lookup, "ASIN (Informational only)", "ASIN")),
         sku: str(field(lookup, "SKU")),
+        cost_type: str(field(lookup, "Cost Type")),
         ...parseMetrics(lookup),
       };
     })

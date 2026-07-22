@@ -130,6 +130,7 @@ export type SdCampaignRow = AdMetrics & {
   state: string | null;
   asin: string | null;
   sku: string | null;
+  cost_type: string | null;
 };
 
 export type SearchTermRow = AdMetrics & {
@@ -232,6 +233,7 @@ export type Database = {
       fn_match_type_analysis: FunctionDef<{ p_audit_id: string; p_ad_type: string }, LabeledMetricsRpcRow[]>;
       fn_placements: FunctionDef<{ p_audit_id: string }, LabeledMetricsRpcRow[]>;
       fn_bidding_strategy: FunctionDef<{ p_audit_id: string }, LabeledMetricsRpcRow[]>;
+      fn_sd_cost_type: FunctionDef<{ p_audit_id: string }, LabeledMetricsRpcRow[]>;
       fn_branded_split: FunctionDef<{ p_audit_id: string; p_term_filter?: string }, BrandedSplitRpcRow[]>;
       fn_branded_search_terms: FunctionDef<
         { p_audit_id: string; p_term_filter: string; p_branded: boolean; p_limit?: number; p_offset?: number },

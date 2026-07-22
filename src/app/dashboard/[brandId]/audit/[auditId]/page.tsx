@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { fetchAuditData, fetchBrandName, type AuditData } from "@/lib/data/audit";
+import { fetchAuditData, fetchBrandName, normalizeAuditData, type AuditData } from "@/lib/data/audit";
 import { writeCache, clearCache } from "@/lib/cache/localCache";
 import { useLocalCacheEntry } from "@/lib/cache/useLocalCacheEntry";
 import { cacheKeys } from "@/lib/cache/cacheKeys";
@@ -173,7 +173,11 @@ export default function AuditPage() {
     );
   }
 
-  const bundle = cacheEntry.data;
+  // Normalize before render — a bundle cached before a field like sdCostType
+  // or notes existed won't have it, and cache hits render straight from
+  // localStorage with no fetch at all, so this is the only place that can
+  // catch it (fixing fetchAuditData alone only protects future fresh fetches).
+  const bundle = normalizeAuditData(cacheEntry.data);
 
   return (
     <div>
@@ -218,7 +222,7 @@ export default function AuditPage() {
       ) : (
         <NotesProvider
           auditId={auditId}
-          initialNotes={bundle.notes ?? {}}
+          initialNotes={bundle.notes}
           onNotesChange={(notes) => writeCache<AuditBundle>(cacheKey, { ...bundle, notes })}
         >
           <AuditDashboard data={bundle} />

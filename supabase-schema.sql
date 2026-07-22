@@ -159,6 +159,7 @@ create table if not exists public.sd_campaign_data (
   state text,
   asin text,
   sku text,
+  cost_type text,
   impressions int,
   clicks int,
   ctr numeric,
@@ -171,6 +172,10 @@ create table if not exists public.sd_campaign_data (
   cpc numeric,
   roas numeric
 );
+
+-- Re-runnable against a database that already has this table from before
+-- cost_type existed — CREATE TABLE IF NOT EXISTS above is a no-op there.
+alter table public.sd_campaign_data add column if not exists cost_type text;
 
 create index if not exists sd_campaign_data_audit_id_idx on public.sd_campaign_data (audit_id);
 create index if not exists sd_campaign_data_entity_idx on public.sd_campaign_data (audit_id, entity);

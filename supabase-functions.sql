@@ -557,6 +557,59 @@ $$;
 
 
 -- ============================================================================
+-- 8b. fn_sd_cost_type — SD Campaign rows grouped by cost type (CPC / VCPM)
+--     + Grand Total. Ad Analysis tab, "SD Cost Type Analysis" section.
+-- ============================================================================
+create or replace function public.fn_sd_cost_type(p_audit_id uuid)
+returns table (
+  label text, impressions bigint, clicks bigint, orders bigint, units bigint,
+  spend numeric, sales numeric, cpc numeric, acos numeric, roas numeric, cvr numeric,
+  pct_of_spend numeric, pct_of_sales numeric
+)
+language sql
+stable
+as $$
+  with categories(label, ord) as (
+    values ('CPC',1), ('VCPM',2)
+  ),
+  filtered as (
+    select cost_type, impressions, clicks, orders, units, spend, sales
+    from public.sd_campaign_data
+    where audit_id = p_audit_id and trim(lower(entity)) = 'campaign'
+  ),
+  by_cat as (
+    select c.label, c.ord,
+           coalesce(sum(f.impressions), 0)::bigint as impressions,
+           coalesce(sum(f.clicks), 0)::bigint as clicks,
+           coalesce(sum(f.orders), 0)::bigint as orders,
+           coalesce(sum(f.units), 0)::bigint as units,
+           coalesce(sum(f.spend), 0)::numeric as spend,
+           coalesce(sum(f.sales), 0)::numeric as sales
+    from categories c
+    left join filtered f on trim(upper(f.cost_type)) = c.label
+    group by c.label, c.ord
+  ),
+  grand as (
+    select 'Grand Total' as label, 999 as ord,
+           coalesce(sum(impressions), 0)::bigint as impressions,
+           coalesce(sum(clicks), 0)::bigint as clicks,
+           coalesce(sum(orders), 0)::bigint as orders,
+           coalesce(sum(units), 0)::bigint as units,
+           coalesce(sum(spend), 0)::numeric as spend,
+           coalesce(sum(sales), 0)::numeric as sales
+    from filtered
+  ),
+  combined as (select * from by_cat union all select * from grand)
+  select c.label, c.impressions, c.clicks, c.orders, c.units, c.spend, c.sales,
+         d.cpc, d.acos, d.roas, d.cvr, d.pct_of_spend, d.pct_of_sales
+  from combined c
+  cross join grand g
+  cross join lateral public.fn_derive_metrics(c.clicks, c.orders, c.spend, c.sales, g.spend, g.sales) d
+  order by c.ord;
+$$;
+
+
+-- ============================================================================
 -- 9. fn_branded_split — Branded vs Non-Branded + Grand Total (2 rows + total)
 -- Mirrors computeBrandedVsNonBranded(). p_term_filter is 'both' | 'sp' | 'sb'.
 -- "Branded" = customer_search_term contains any of the audit's brand_keywords
@@ -815,6 +868,7 @@ grant execute on function public.fn_auto_manual_split(uuid) to authenticated;
 grant execute on function public.fn_match_type_analysis(uuid, text) to authenticated;
 grant execute on function public.fn_placements(uuid) to authenticated;
 grant execute on function public.fn_bidding_strategy(uuid) to authenticated;
+grant execute on function public.fn_sd_cost_type(uuid) to authenticated;
 grant execute on function public.fn_branded_split(uuid, text) to authenticated;
 grant execute on function public.fn_branded_search_terms(uuid, text, boolean, int, int) to authenticated;
 grant execute on function public.fn_wasted_spend(uuid, text, int, int) to authenticated;
