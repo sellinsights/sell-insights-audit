@@ -8,6 +8,7 @@ import { searchTermColumn } from "@/components/amazonLinkColumns";
 import { createClient } from "@/lib/supabase/client";
 import { withTimeout } from "@/lib/withTimeout";
 import { formatCurrency, formatDecimal, formatNumber, formatPercent } from "@/lib/format";
+import { formatCount } from "@/lib/formatCount";
 import type { Database } from "@/types/database";
 import type { OpportunityAdType, OpportunityRow, OpportunityTermType } from "@/lib/data/rpc";
 
@@ -37,6 +38,38 @@ type FetchFn = (
   limit?: number,
   offset?: number
 ) => Promise<{ rows: OpportunityRow[]; totalCount: number }>;
+
+/** Client-side Grand Total for the currently visible page of rows (the RPC
+ * itself only returns individual search terms plus a total_count, no
+ * aggregate) — CPC/ACOS/ROAS/CVR are recomputed from the summed totals, not
+ * averaged per-row, consistent with fn_derive_metrics' formulas elsewhere. */
+function computeOpportunityGrandTotal(rows: OpportunityRow[]): OpportunityRow | undefined {
+  if (rows.length === 0) return undefined;
+  let impressions = 0;
+  let clicks = 0;
+  let orders = 0;
+  let spend = 0;
+  let sales = 0;
+  for (const r of rows) {
+    impressions += r.impressions;
+    clicks += r.clicks;
+    orders += r.orders;
+    spend += r.spend;
+    sales += r.sales;
+  }
+  return {
+    customerSearchTerm: "Grand Total",
+    impressions,
+    clicks,
+    orders,
+    spend,
+    sales,
+    cpc: clicks > 0 ? spend / clicks : null,
+    acos: sales > 0 ? (spend / sales) * 100 : null,
+    roas: spend > 0 ? sales / spend : null,
+    cvr: clicks > 0 ? (orders / clicks) * 100 : null,
+  };
+}
 
 /** Shared UI for the three opportunity tabs (ACOS Improvement, Scale
  * Opportunities, Cost Reduction) — same two toggles, same columns, same
@@ -127,10 +160,13 @@ export function OpportunityTable({
     [marketplace]
   );
 
+  const grandTotal = useMemo(() => computeOpportunityGrandTotal(data?.rows ?? []), [data]);
+
   return (
     <SectionCard
       title={title}
       description={description}
+      count={formatCount(data?.rows.length ?? 0, "search term")}
       sectionKey={sectionKey}
       actions={
         <div className="flex flex-wrap items-center gap-2">
@@ -189,6 +225,7 @@ export function OpportunityTable({
           <DataTable
             columns={columns}
             rows={data?.rows ?? []}
+            footer={grandTotal}
             keyFn={(r, i) => `${r.customerSearchTerm}-${i}`}
             maxHeightPx={TABLE_MAX_HEIGHT_PX}
             emptyMessage="No search terms match this filter combination."

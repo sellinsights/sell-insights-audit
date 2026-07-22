@@ -8,6 +8,7 @@ import { createClient } from "@/lib/supabase/client";
 import { fetchBleeders, type BleederRow } from "@/lib/data/rpc";
 import { withTimeout } from "@/lib/withTimeout";
 import { formatCurrency, formatNumber } from "@/lib/format";
+import { formatCount } from "@/lib/formatCount";
 
 type BleederTermFilter = "both" | "keyword" | "asin";
 
@@ -42,6 +43,34 @@ function buildColumns(marketplace: string | null): Column<BleederRow>[] {
   ];
 }
 
+/** Client-side Grand Total for the currently visible/filtered rows — fn_bleeders
+ * only returns individual search terms, no aggregate, so this is computed
+ * here rather than in SQL. avgCpc is total spend / total clicks (not an
+ * average of each row's avgCpc); highestCpc is the max across all rows. */
+function computeBleederGrandTotal(rows: BleederRow[]): BleederRow | undefined {
+  if (rows.length === 0) return undefined;
+  let spend = 0;
+  let clicks = 0;
+  let orders = 0;
+  let highestCpc: number | null = null;
+  for (const r of rows) {
+    spend += r.spend;
+    clicks += r.clicks;
+    orders += r.orders;
+    if (r.highestCpc !== null && (highestCpc === null || r.highestCpc > highestCpc)) {
+      highestCpc = r.highestCpc;
+    }
+  }
+  return {
+    customerSearchTerm: "Grand Total",
+    spend,
+    clicks,
+    orders,
+    avgCpc: clicks > 0 ? spend / clicks : null,
+    highestCpc,
+  };
+}
+
 function BleederTable({
   title,
   description,
@@ -56,10 +85,16 @@ function BleederTable({
   columns: Column<BleederRow>[];
 }) {
   return (
-    <SectionCard title={title} description={description} sectionKey={sectionKey}>
+    <SectionCard
+      title={title}
+      description={description}
+      count={formatCount(rows.length, "search term")}
+      sectionKey={sectionKey}
+    >
       <DataTable
         columns={columns}
         rows={rows}
+        footer={computeBleederGrandTotal(rows)}
         keyFn={(r, i) => `${r.customerSearchTerm}-${i}`}
         maxHeightPx={420}
         emptyMessage="No zero-order search terms in this band."

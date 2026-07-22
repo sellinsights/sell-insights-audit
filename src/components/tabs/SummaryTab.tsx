@@ -4,6 +4,7 @@ import { SectionCard } from "@/components/SectionCard";
 import { DataTable, type Column } from "@/components/DataTable";
 import { asinColumn } from "@/components/amazonLinkColumns";
 import { formatCurrency, formatNumber, formatPercent, formatDecimal } from "@/lib/format";
+import { formatCount } from "@/lib/formatCount";
 import type { AdvertisedAsinRow, TopAsinRow } from "@/lib/data/rpc";
 import type { AuditData } from "@/lib/data/audit";
 
@@ -121,6 +122,7 @@ export const SummaryTab = memo(function SummaryTab({ data }: { data: AuditData }
       <SectionCard
         title="Top 10 ASINs by Units Ordered"
         description="Business Report joined with SP Campaign data (Product Ad entity)."
+        count={formatCount(topAsins.length, "ASIN")}
         sectionKey="summary_top_asins"
       >
         <DataTable columns={topAsinColumns} rows={topAsins} keyFn={(r) => r.asin} maxHeightPx={520} />
@@ -129,6 +131,7 @@ export const SummaryTab = memo(function SummaryTab({ data }: { data: AuditData }
       <SectionCard
         title="Advertised ASIN Performance (SP only)"
         description="Sponsored Products, Entity = Product Ad, grouped by ASIN."
+        count={formatCount(advertisedAsins.length, "ASIN")}
         sectionKey="summary_advertised_asin"
       >
         <DataTable columns={advertisedColumns} rows={advertisedAsins} keyFn={(r) => r.asin} maxHeightPx={520} />

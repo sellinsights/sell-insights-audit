@@ -16,6 +16,9 @@
   --color-chart-sp: #2a78d6;
   --color-chart-sb: #eb6834;
   --color-chart-sd: #1baf7a;
+
+  /* Muted secondary text — e.g. per-section row-count labels */
+  --text-muted: #8a94a3;
 }
 
 @theme inline {

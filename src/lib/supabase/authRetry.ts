@@ -58,10 +58,10 @@ function isAuthError(error: unknown): boolean {
  * bug — the retry now happens automatically instead of requiring the user
  * to manually reload.
  */
-export async function withAuthRetry<T, E = unknown>(
+export async function withAuthRetry<R extends { error: unknown }>(
   supabase: SupabaseClient,
-  run: () => PromiseLike<{ data: T; error: E | null }>
-): Promise<{ data: T; error: E | null }> {
+  run: () => PromiseLike<R>
+): Promise<R> {
   await ensureFreshSession(supabase);
 
   const first = await run();

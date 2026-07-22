@@ -2,6 +2,7 @@ import { memo } from "react";
 import { SectionCard } from "@/components/SectionCard";
 import { DataTable, type Column } from "@/components/DataTable";
 import { formatCurrency, formatNumber } from "@/lib/format";
+import { formatCount } from "@/lib/formatCount";
 import type { WastedSpendRow } from "@/lib/data/rpc";
 import type { AuditData } from "@/lib/data/audit";
 
@@ -52,6 +53,7 @@ export const WastedSpendTab = memo(function WastedSpendTab({ data }: { data: Aud
       <SectionCard
         title="SP — 1 to 5 Clicks, 0 Orders"
         description="Search terms getting clicked but not converting yet — early signal, not necessarily wasted."
+        count={formatCount(spUnder5.rows.length, "match type")}
         sectionKey="wasted_spend_sp_under5"
       >
         <DataTable columns={columns} rows={spUnder5.rows} footer={spUnder5.grandTotal} keyFn={(r) => r.matchType} />
@@ -60,6 +62,7 @@ export const WastedSpendTab = memo(function WastedSpendTab({ data }: { data: Aud
       <SectionCard
         title="SP — 6+ Clicks, 0 Orders"
         description="Meaningful click volume with zero orders — strong candidates for negative targeting."
+        count={formatCount(spOver5.rows.length, "match type")}
         sectionKey="wasted_spend_sp_over5"
       >
         <DataTable columns={columns} rows={spOver5.rows} footer={spOver5.grandTotal} keyFn={(r) => r.matchType} />
@@ -68,6 +71,7 @@ export const WastedSpendTab = memo(function WastedSpendTab({ data }: { data: Aud
       <SectionCard
         title="SB — 1 to 5 Clicks, 0 Orders"
         description="Search terms getting clicked but not converting yet — early signal, not necessarily wasted."
+        count={formatCount(sbUnder5.rows.length, "match type")}
         sectionKey="wasted_spend_sb_under5"
       >
         <DataTable columns={columns} rows={sbUnder5.rows} footer={sbUnder5.grandTotal} keyFn={(r) => r.matchType} />
@@ -76,6 +80,7 @@ export const WastedSpendTab = memo(function WastedSpendTab({ data }: { data: Aud
       <SectionCard
         title="SB — 6+ Clicks, 0 Orders"
         description="Meaningful click volume with zero orders — strong candidates for negative targeting."
+        count={formatCount(sbOver5.rows.length, "match type")}
         sectionKey="wasted_spend_sb_over5"
       >
         <DataTable columns={columns} rows={sbOver5.rows} footer={sbOver5.grandTotal} keyFn={(r) => r.matchType} />

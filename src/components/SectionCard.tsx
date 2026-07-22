@@ -77,12 +77,19 @@ function NotesPanel({ sectionKey, open }: { sectionKey: string; open: boolean })
 export function SectionCard({
   title,
   description,
+  count,
   actions,
   children,
   sectionKey,
 }: {
   title: string;
   description?: string;
+  /** Pre-formatted row-count label shown under the title/description, e.g.
+   * "10 ASINs" or "3 ad types" — see src/lib/formatCount.ts. Callers compute
+   * this themselves since the unit noun (ASINs, search terms, ad types, ...)
+   * and pluralization are section-specific. Omit for sections that aren't a
+   * row-count-able table (e.g. a KPI grid). */
+  count?: string;
   actions?: ReactNode;
   children: ReactNode;
   /** Opts this section into the Notes feature — pass a unique key (see
@@ -109,6 +116,7 @@ export function SectionCard({
         <div>
           <h3 className="text-base font-bold text-navy">{title}</h3>
           {description && <p className="mt-0.5 text-sm text-neutral-500">{description}</p>}
+          {count && <p className="mt-0.5 text-xs text-[var(--text-muted)]">{count}</p>}
         </div>
         <div className="flex items-center gap-2">
           {actions}

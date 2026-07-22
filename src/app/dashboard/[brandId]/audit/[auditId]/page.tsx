@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { fetchAuditData, fetchBrandName, normalizeAuditData, type AuditData } from "@/lib/data/audit";
+import { fetchAuditData, fetchAuditUpdatedAt, fetchBrandName, normalizeAuditData, type AuditData } from "@/lib/data/audit";
 import { writeCache, clearCache } from "@/lib/cache/localCache";
 import { useLocalCacheEntry } from "@/lib/cache/useLocalCacheEntry";
 import { cacheKeys } from "@/lib/cache/cacheKeys";
@@ -40,6 +40,7 @@ export default function AuditPage() {
   const [notFound, setNotFound] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const fetchingRef = useRef(false);
+  const staleCheckedRef = useRef(false);
 
   const fetchFresh = useCallback(async () => {
     if (fetchingRef.current) {
@@ -57,16 +58,6 @@ export default function AuditPage() {
     try {
       const supabase = createClient();
 
-      // RLS diagnostic: an audit only comes back if `created_by` matches the
-      // logged-in user's id. Logging both here makes a mismatch obvious.
-      console.log("[CLIENT PERF] checking current user via supabase.auth.getUser()...");
-      const {
-        data: { user },
-        error: userError,
-      } = await supabase.auth.getUser();
-      if (userError) console.error("[CLIENT PERF] supabase.auth.getUser() error:", userError);
-      console.log("[CLIENT PERF] current user id:", user?.id ?? "(none — not authenticated!)");
-
       console.log("[CLIENT PERF] fetching audit data + brand name...");
       const [data, brandName] = await withTimeout(
         Promise.all([fetchAuditData(supabase, auditId), fetchBrandName(supabase, brandId)]),
@@ -76,33 +67,20 @@ export default function AuditPage() {
       console.log("[CLIENT PERF] fetch resolved:", { hasAuditRow: !!data, brandName });
 
       if (!data) {
-        console.error(
-          "[CLIENT PERF] No audit row returned — either the audit doesn't exist, or RLS is blocking it " +
-            "(audits are only visible when audits.created_by = auth.uid()).",
-          { auditId, currentUserId: user?.id ?? null }
-        );
+        // RLS grants every authenticated user access to every audit, so a
+        // missing row here means it was deleted or the id is wrong — not an
+        // ownership mismatch.
+        console.error("[CLIENT PERF] No audit row returned — either the audit doesn't exist, or the id is wrong.", {
+          auditId,
+        });
         setNotFound(true);
         return;
       }
 
-      if (user) {
-        if (data.audit.created_by !== user.id) {
-          console.error(
-            "[CLIENT PERF] RLS MISMATCH: audit.created_by does not match the current user id — " +
-              "this would normally hide the audit entirely, so seeing it here alongside a mismatch is unexpected.",
-            { auditCreatedBy: data.audit.created_by, currentUserId: user.id }
-          );
-        } else {
-          console.log("[CLIENT PERF] audit.created_by matches current user — RLS is not the issue.", {
-            auditCreatedBy: data.audit.created_by,
-          });
-        }
-      }
-
       if (isAllEmpty(data)) {
         console.warn(
-          "[CLIENT PERF] Audit row loaded but every aggregate came back empty (0 revenue, 0 spend, 0 ASINs). " +
-            "Either the uploaded files never finished parsing, or RLS is silently hiding the underlying rows.",
+          "[CLIENT PERF] Audit row loaded but every aggregate came back empty (0 revenue, 0 spend, 0 ASINs) — " +
+            "the uploaded files most likely never finished parsing.",
           { kpis: data.kpis, topAsinCount: data.topAsins.length, advertisedAsinCount: data.advertisedAsins.length }
         );
       }
@@ -129,6 +107,44 @@ export default function AuditPage() {
     return () => clearTimeout(timeoutId);
   }, [cacheEntry, cacheKey, fetchFresh]);
 
+  // Smart cache invalidation: unlike the brand/audit list pages, this bundle
+  // doesn't change once an audit finishes processing — so instead of a count
+  // query, one query for just `updated_at` is enough to catch the rare case
+  // where it *does* change (re-processed from another device, a future edit
+  // feature, etc.) without re-fetching the whole dashboard on every load.
+  const checkStale = useCallback(async () => {
+    if (!cacheEntry) return;
+    try {
+      const supabase = createClient();
+      const liveUpdatedAt = await withTimeout(
+        fetchAuditUpdatedAt(supabase, auditId),
+        FETCH_TIMEOUT_MS,
+        "Audit updated_at check"
+      );
+      const cachedUpdatedAt = cacheEntry.data.audit.updated_at;
+      const isNewer =
+        !!liveUpdatedAt && (!cachedUpdatedAt || new Date(liveUpdatedAt).getTime() > new Date(cachedUpdatedAt).getTime());
+      if (isNewer) {
+        console.log(
+          `[CLIENT PERF] audit updated_at changed (cached ${cachedUpdatedAt} -> live ${liveUpdatedAt}) — invalidating cache`
+        );
+        clearCache(cacheKey);
+        await fetchFresh();
+      } else {
+        console.log("[CLIENT PERF] audit updated_at check: cache is fresh", { liveUpdatedAt, cachedUpdatedAt });
+      }
+    } catch (err) {
+      console.warn("[CLIENT PERF] audit updated_at check failed — keeping cached data:", err);
+    }
+  }, [cacheEntry, auditId, cacheKey, fetchFresh]);
+
+  useEffect(() => {
+    if (!cacheEntry || staleCheckedRef.current) return;
+    staleCheckedRef.current = true;
+    const timeoutId = setTimeout(() => void checkStale(), 0);
+    return () => clearTimeout(timeoutId);
+  }, [cacheEntry, checkStale]);
+
   function handleRefresh() {
     clearCache(cacheKey);
   }
@@ -138,8 +154,8 @@ export default function AuditPage() {
       <div className="rounded-xl border border-dashed border-neutral-300 bg-white p-12 text-center">
         <p className="text-sm text-neutral-500">Audit not found.</p>
         <p className="mt-1 text-xs text-neutral-400">
-          Check the browser console for details — this can mean the audit doesn&apos;t exist, or that it
-          belongs to a different user.
+          Check the browser console for details — this usually means the audit doesn&apos;t exist or was
+          deleted.
         </p>
         <Link
           href={`/dashboard/${brandId}`}

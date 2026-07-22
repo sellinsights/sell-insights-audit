@@ -5,6 +5,7 @@ import { DataTable } from "@/components/DataTable";
 import { metricsColumns } from "@/components/metricsTableColumns";
 import { BrandedVsNonBrandedSection } from "@/components/BrandedVsNonBrandedSection";
 import { buildPlacementSubsections } from "@/lib/placementBreakdown";
+import { formatCount } from "@/lib/formatCount";
 import type { AuditData } from "@/lib/data/audit";
 
 // recharts is a large, browser-only (ResizeObserver/SVG-measuring) library —
@@ -39,6 +40,7 @@ export const AdAnalysisTab = memo(function AdAnalysisTab({ data, auditId }: { da
       <SectionCard
         title="Ad Type Spend Split"
         description="Entity = Campaign, grouped by SP / SB / SD."
+        count={formatCount(adTypeSplit?.rows.length ?? 0, "ad type")}
         sectionKey="ad_analysis_ad_type_split"
       >
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
@@ -49,7 +51,12 @@ export const AdAnalysisTab = memo(function AdAnalysisTab({ data, auditId }: { da
         </div>
       </SectionCard>
 
-      <SectionCard title="Auto vs Manual (SP only)" description={autoVerdict} sectionKey="ad_analysis_auto_manual">
+      <SectionCard
+        title="Auto vs Manual (SP only)"
+        description={autoVerdict}
+        count={formatCount(autoManualSplit?.rows.length ?? 0, "targeting type")}
+        sectionKey="ad_analysis_auto_manual"
+      >
         <DataTable
           columns={metricsColumns("Targeting Type")}
           rows={autoManualSplit?.rows ?? []}
@@ -68,6 +75,7 @@ export const AdAnalysisTab = memo(function AdAnalysisTab({ data, auditId }: { da
       <SectionCard
         title="SP Match Type Analysis"
         description="Entity = Keyword or Product Targeting, grouped by final match type."
+        count={formatCount(spMatchTypes?.rows.length ?? 0, "match type")}
         sectionKey="ad_analysis_sp_match_type"
       >
         <DataTable
@@ -81,6 +89,7 @@ export const AdAnalysisTab = memo(function AdAnalysisTab({ data, auditId }: { da
       <SectionCard
         title="SB Match Type Analysis"
         description="Entity = Keyword or Product Targeting, grouped by final match type."
+        count={formatCount(sbMatchTypes?.rows.length ?? 0, "match type")}
         sectionKey="ad_analysis_sb_match_type"
       >
         <DataTable
@@ -94,6 +103,7 @@ export const AdAnalysisTab = memo(function AdAnalysisTab({ data, auditId }: { da
       <SectionCard
         title="SD Cost Type Analysis"
         description="Entity = Campaign, grouped by Cost Type."
+        count={formatCount(sdCostType?.rows.length ?? 0, "cost type")}
         sectionKey="ad_analysis_sd_cost_type"
       >
         {/* Defensive: undefined for an audit dashboard cached before this
@@ -116,7 +126,10 @@ export const AdAnalysisTab = memo(function AdAnalysisTab({ data, auditId }: { da
       >
         <div className="space-y-6">
           <div>
-            <h4 className="mb-2 text-sm font-semibold text-navy">Placement Analysis</h4>
+            <h4 className="mb-0.5 text-sm font-semibold text-navy">Placement Analysis</h4>
+            <p className="mb-2 text-xs text-[var(--text-muted)]">
+              {formatCount(placementSubsections.core.rows.length, "placement")}
+            </p>
             <DataTable
               columns={placementColumns}
               rows={placementSubsections.core.rows}
@@ -125,7 +138,10 @@ export const AdAnalysisTab = memo(function AdAnalysisTab({ data, auditId }: { da
             />
           </div>
           <div>
-            <h4 className="mb-2 text-sm font-semibold text-navy">Business Placement Analysis</h4>
+            <h4 className="mb-0.5 text-sm font-semibold text-navy">Business Placement Analysis</h4>
+            <p className="mb-2 text-xs text-[var(--text-muted)]">
+              {formatCount(placementSubsections.business.rows.length, "category", "categories")}
+            </p>
             <DataTable
               columns={placementColumns}
               rows={placementSubsections.business.rows}
@@ -134,7 +150,10 @@ export const AdAnalysisTab = memo(function AdAnalysisTab({ data, auditId }: { da
             />
           </div>
           <div>
-            <h4 className="mb-2 text-sm font-semibold text-navy">Audience Placement Analysis</h4>
+            <h4 className="mb-0.5 text-sm font-semibold text-navy">Audience Placement Analysis</h4>
+            <p className="mb-2 text-xs text-[var(--text-muted)]">
+              {formatCount(placementSubsections.audience.rows.length, "category", "categories")}
+            </p>
             <DataTable
               columns={placementColumns}
               rows={placementSubsections.audience.rows}
@@ -148,6 +167,7 @@ export const AdAnalysisTab = memo(function AdAnalysisTab({ data, auditId }: { da
       <SectionCard
         title="Bidding Strategy (SP only)"
         description="Entity = Bidding Adjustment, grouped by bidding strategy."
+        count={formatCount(biddingStrategy?.rows.length ?? 0, "strategy", "strategies")}
         sectionKey="ad_analysis_bidding_strategy"
       >
         <DataTable

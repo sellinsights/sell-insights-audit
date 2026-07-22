@@ -161,8 +161,10 @@ export async function fetchAuditData(supabase: SupabaseClient<Database>, auditId
     );
     console.timeEnd("[PERF] fetchAuditData audits row");
     if (auditError) {
-      // PGRST116 = "no rows" — expected when RLS hides the row (not this
-      // user's audit) or the id is wrong. Anything else is a real failure.
+      // PGRST116 = "no rows" — expected when the id is wrong or the audit
+      // was deleted (RLS now grants every authenticated user access to
+      // every audit, so ownership is no longer a possible cause). Anything
+      // else is a real failure.
       console.error(`[PERF] fetchAuditData — audits query failed for ${auditId}:`, auditError);
     }
     if (auditError || !audit) return null;
@@ -305,6 +307,31 @@ export async function fetchBrandName(
     return null;
   } finally {
     console.timeEnd(`[PERF] fetchBrandName ${brandId}`);
+  }
+}
+
+/** Lightweight cache-invalidation check for the audit dashboard: the full
+ * bundle doesn't change once an audit finishes processing, so instead of
+ * re-fetching everything on every load, the page compares this single
+ * column against the `updated_at` stored in the cached bundle and only
+ * re-fetches when the DB row is actually newer (e.g. re-processed from
+ * another device, or a future edit feature touches the row). */
+export async function fetchAuditUpdatedAt(
+  supabase: SupabaseClient<Database>,
+  auditId: string
+): Promise<string | null> {
+  console.time(`[PERF] fetchAuditUpdatedAt ${auditId}`);
+  try {
+    const { data, error } = await withAuthRetry(supabase, () =>
+      supabase.from("audits").select("updated_at").eq("id", auditId).single()
+    );
+    if (error) {
+      console.error(`[PERF] fetchAuditUpdatedAt — query failed for ${auditId}:`, error);
+      throw new Error(error.message);
+    }
+    return data?.updated_at ?? null;
+  } finally {
+    console.timeEnd(`[PERF] fetchAuditUpdatedAt ${auditId}`);
   }
 }
 

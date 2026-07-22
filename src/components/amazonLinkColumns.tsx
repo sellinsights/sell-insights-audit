@@ -61,6 +61,9 @@ export function searchTermColumn<T>({
     render: (row) => {
       const term = getTerm(row);
       if (!term) return "—";
+      // Synthetic Grand Total rows aren't a real search term — render plain
+      // bold text instead of a (meaningless) Amazon search link.
+      if (term === "Grand Total") return <span className="font-semibold text-navy">Grand Total</span>;
       return <AmazonLink href={amazonSearchTermUrl(term, marketplace)}>{term}</AmazonLink>;
     },
     sortValue: (row) => getTerm(row),

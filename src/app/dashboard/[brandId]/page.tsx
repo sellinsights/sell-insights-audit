@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { fetchBrand, fetchBrandAudits } from "@/lib/data/brands";
+import { fetchBrand, fetchBrandAuditCount, fetchBrandAudits } from "@/lib/data/brands";
 import { writeCache, clearCache } from "@/lib/cache/localCache";
 import { useLocalCacheEntry } from "@/lib/cache/useLocalCacheEntry";
 import { cacheKeys } from "@/lib/cache/cacheKeys";
@@ -34,6 +34,7 @@ export default function BrandAuditsPage() {
   const [notFound, setNotFound] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const fetchingRef = useRef(false);
+  const staleCheckedRef = useRef(false);
 
   const fetchFresh = useCallback(async () => {
     if (fetchingRef.current) return;
@@ -50,7 +51,9 @@ export default function BrandAuditsPage() {
         "Brand + audits fetch"
       );
       if (!brand) {
-        console.error("[CLIENT PERF] No brand row returned — either it doesn't exist or RLS is blocking it.", {
+        // RLS grants every authenticated user access to every brand, so a
+        // missing row here means it was deleted or the id is wrong.
+        console.error("[CLIENT PERF] No brand row returned — either it doesn't exist or the id is wrong.", {
           brandId,
         });
         setNotFound(true);
@@ -75,6 +78,39 @@ export default function BrandAuditsPage() {
     const timeoutId = setTimeout(() => void fetchFresh(), 0);
     return () => clearTimeout(timeoutId);
   }, [cacheEntry, fetchFresh]);
+
+  // Smart cache invalidation: one cheap count query per load catches an
+  // audit a teammate created for this brand from another device without
+  // giving up the instant cache-hit render. Runs once per mount.
+  const checkStale = useCallback(async () => {
+    if (!cacheEntry) return;
+    try {
+      const supabase = createClient();
+      const liveCount = await withTimeout(
+        fetchBrandAuditCount(supabase, brandId),
+        FETCH_TIMEOUT_MS,
+        "Audit count check"
+      );
+      if (liveCount !== cacheEntry.data.audits.length) {
+        console.log(
+          `[CLIENT PERF] audit count changed for brand ${brandId} (cached ${cacheEntry.data.audits.length} -> live ${liveCount}) — invalidating cache`
+        );
+        clearCache(cacheKey);
+        await fetchFresh();
+      } else {
+        console.log(`[CLIENT PERF] audit count check: still ${liveCount}, cache is fresh`);
+      }
+    } catch (err) {
+      console.warn("[CLIENT PERF] audit count check failed — keeping cached data:", err);
+    }
+  }, [cacheEntry, brandId, cacheKey, fetchFresh]);
+
+  useEffect(() => {
+    if (!cacheEntry || staleCheckedRef.current) return;
+    staleCheckedRef.current = true;
+    const timeoutId = setTimeout(() => void checkStale(), 0);
+    return () => clearTimeout(timeoutId);
+  }, [cacheEntry, checkStale]);
 
   function handleRefresh() {
     clearCache(cacheKey);

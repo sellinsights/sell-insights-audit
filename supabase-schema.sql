@@ -32,16 +32,37 @@ create table if not exists public.audits (
   status text not null default 'draft' check (status in ('draft', 'processing', 'complete')),
   marketplace text not null default 'US',
   created_by uuid not null references auth.users (id) on delete cascade,
-  created_at timestamptz not null default now()
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
 );
 
 -- Re-runnable against a database that already has this table from before
--- marketplace existed — CREATE TABLE IF NOT EXISTS above is a no-op there.
--- The DEFAULT backfills every pre-existing row to 'US' automatically.
+-- marketplace/updated_at existed — CREATE TABLE IF NOT EXISTS above is a
+-- no-op there. The DEFAULTs backfill every pre-existing row automatically.
 alter table public.audits add column if not exists marketplace text not null default 'US';
+alter table public.audits add column if not exists updated_at timestamptz not null default now();
 
 create index if not exists audits_brand_id_idx on public.audits (brand_id);
 create index if not exists audits_created_by_idx on public.audits (created_by);
+
+-- Bumps updated_at on every row change (status transitions, future edit
+-- features, etc.) — the audit dashboard's cache-invalidation check compares
+-- this against the cached value to detect changes made elsewhere.
+create or replace function public.set_updated_at()
+returns trigger
+language plpgsql
+as $$
+begin
+  new.updated_at = now();
+  return new;
+end;
+$$;
+
+drop trigger if exists audits_set_updated_at on public.audits;
+create trigger audits_set_updated_at
+  before update on public.audits
+  for each row
+  execute function public.set_updated_at();
 
 -- ----------------------------------------------------------------------------
 -- audit_files — one row per uploaded source file
@@ -274,6 +295,13 @@ create table if not exists public.audit_notes (
 
 -- ============================================================================
 -- Row Level Security
+--
+-- Team-wide access: any authenticated user can see and modify every row, not
+-- just rows they created. This is a shared workspace, not a per-user silo —
+-- `created_by` stays on brands/audits for attribution only, it no longer
+-- gates visibility. Every policy below is `drop policy if exists` +
+-- `create policy` so this section is safe to re-run against a database that
+-- was originally provisioned with the old owner-only policies.
 -- ============================================================================
 alter table public.brands enable row level security;
 alter table public.audits enable row level security;
@@ -287,141 +315,97 @@ alter table public.sb_search_term_data enable row level security;
 alter table public.brand_keywords enable row level security;
 alter table public.audit_notes enable row level security;
 
--- brands: owner-only
+-- brands: any authenticated user
+drop policy if exists "brands_select_own" on public.brands;
 create policy "brands_select_own" on public.brands
-  for select using (created_by = auth.uid());
+  for select using (auth.role() = 'authenticated');
+drop policy if exists "brands_insert_own" on public.brands;
 create policy "brands_insert_own" on public.brands
-  for insert with check (created_by = auth.uid());
+  for insert with check (auth.role() = 'authenticated');
+drop policy if exists "brands_update_own" on public.brands;
 create policy "brands_update_own" on public.brands
-  for update using (created_by = auth.uid());
+  for update using (auth.role() = 'authenticated');
+drop policy if exists "brands_delete_own" on public.brands;
 create policy "brands_delete_own" on public.brands
-  for delete using (created_by = auth.uid());
+  for delete using (auth.role() = 'authenticated');
 
--- audits: owner-only
+-- audits: any authenticated user
+drop policy if exists "audits_select_own" on public.audits;
 create policy "audits_select_own" on public.audits
-  for select using (created_by = auth.uid());
+  for select using (auth.role() = 'authenticated');
+drop policy if exists "audits_insert_own" on public.audits;
 create policy "audits_insert_own" on public.audits
-  for insert with check (created_by = auth.uid());
+  for insert with check (auth.role() = 'authenticated');
+drop policy if exists "audits_update_own" on public.audits;
 create policy "audits_update_own" on public.audits
-  for update using (created_by = auth.uid());
+  for update using (auth.role() = 'authenticated');
+drop policy if exists "audits_delete_own" on public.audits;
 create policy "audits_delete_own" on public.audits
-  for delete using (created_by = auth.uid());
+  for delete using (auth.role() = 'authenticated');
 
--- Reusable pattern for every audit-scoped child table: the row is visible if
--- the parent audit belongs to the current user.
+-- Reusable pattern for every audit-scoped child table: any authenticated
+-- user. The audit_id FK (references public.audits ... on delete cascade)
+-- still enforces that every row belongs to a real audit — RLS no longer
+-- needs to re-check that via an EXISTS lookup.
+drop policy if exists "audit_files_all_own_audit" on public.audit_files;
 create policy "audit_files_all_own_audit" on public.audit_files
-  for all using (
-    exists (select 1 from public.audits a where a.id = audit_id and a.created_by = auth.uid())
-  ) with check (
-    exists (select 1 from public.audits a where a.id = audit_id and a.created_by = auth.uid())
-  );
+  for all using (auth.role() = 'authenticated') with check (auth.role() = 'authenticated');
 
+drop policy if exists "business_report_data_all_own_audit" on public.business_report_data;
 create policy "business_report_data_all_own_audit" on public.business_report_data
-  for all using (
-    exists (select 1 from public.audits a where a.id = audit_id and a.created_by = auth.uid())
-  ) with check (
-    exists (select 1 from public.audits a where a.id = audit_id and a.created_by = auth.uid())
-  );
+  for all using (auth.role() = 'authenticated') with check (auth.role() = 'authenticated');
 
+drop policy if exists "sp_campaign_data_all_own_audit" on public.sp_campaign_data;
 create policy "sp_campaign_data_all_own_audit" on public.sp_campaign_data
-  for all using (
-    exists (select 1 from public.audits a where a.id = audit_id and a.created_by = auth.uid())
-  ) with check (
-    exists (select 1 from public.audits a where a.id = audit_id and a.created_by = auth.uid())
-  );
+  for all using (auth.role() = 'authenticated') with check (auth.role() = 'authenticated');
 
+drop policy if exists "sb_campaign_data_all_own_audit" on public.sb_campaign_data;
 create policy "sb_campaign_data_all_own_audit" on public.sb_campaign_data
-  for all using (
-    exists (select 1 from public.audits a where a.id = audit_id and a.created_by = auth.uid())
-  ) with check (
-    exists (select 1 from public.audits a where a.id = audit_id and a.created_by = auth.uid())
-  );
+  for all using (auth.role() = 'authenticated') with check (auth.role() = 'authenticated');
 
+drop policy if exists "sd_campaign_data_all_own_audit" on public.sd_campaign_data;
 create policy "sd_campaign_data_all_own_audit" on public.sd_campaign_data
-  for all using (
-    exists (select 1 from public.audits a where a.id = audit_id and a.created_by = auth.uid())
-  ) with check (
-    exists (select 1 from public.audits a where a.id = audit_id and a.created_by = auth.uid())
-  );
+  for all using (auth.role() = 'authenticated') with check (auth.role() = 'authenticated');
 
+drop policy if exists "sp_search_term_data_all_own_audit" on public.sp_search_term_data;
 create policy "sp_search_term_data_all_own_audit" on public.sp_search_term_data
-  for all using (
-    exists (select 1 from public.audits a where a.id = audit_id and a.created_by = auth.uid())
-  ) with check (
-    exists (select 1 from public.audits a where a.id = audit_id and a.created_by = auth.uid())
-  );
+  for all using (auth.role() = 'authenticated') with check (auth.role() = 'authenticated');
 
+drop policy if exists "sb_search_term_data_all_own_audit" on public.sb_search_term_data;
 create policy "sb_search_term_data_all_own_audit" on public.sb_search_term_data
-  for all using (
-    exists (select 1 from public.audits a where a.id = audit_id and a.created_by = auth.uid())
-  ) with check (
-    exists (select 1 from public.audits a where a.id = audit_id and a.created_by = auth.uid())
-  );
+  for all using (auth.role() = 'authenticated') with check (auth.role() = 'authenticated');
 
+drop policy if exists "brand_keywords_all_own_audit" on public.brand_keywords;
 create policy "brand_keywords_all_own_audit" on public.brand_keywords
-  for all using (
-    exists (select 1 from public.audits a where a.id = audit_id and a.created_by = auth.uid())
-  ) with check (
-    exists (select 1 from public.audits a where a.id = audit_id and a.created_by = auth.uid())
-  );
+  for all using (auth.role() = 'authenticated') with check (auth.role() = 'authenticated');
 
+drop policy if exists "audit_notes_all_own_audit" on public.audit_notes;
 create policy "audit_notes_all_own_audit" on public.audit_notes
-  for all using (
-    exists (select 1 from public.audits a where a.id = audit_id and a.created_by = auth.uid())
-  ) with check (
-    exists (select 1 from public.audits a where a.id = audit_id and a.created_by = auth.uid())
-  );
+  for all using (auth.role() = 'authenticated') with check (auth.role() = 'authenticated');
 
 -- ============================================================================
--- Storage — 'audit-files' bucket
--- Files are stored under `${audit_id}/${file_type}/${filename}`, so ownership
--- can be checked the same way as the data tables: the first path segment must
--- be an audit the current user owns.
+-- Storage — 'audit-files' bucket — any authenticated user.
 -- ============================================================================
 insert into storage.buckets (id, name, public)
 values ('audit-files', 'audit-files', false)
 on conflict (id) do nothing;
 
+drop policy if exists "audit_files_storage_select_own" on storage.objects;
 create policy "audit_files_storage_select_own"
   on storage.objects for select
-  using (
-    bucket_id = 'audit-files'
-    and exists (
-      select 1 from public.audits a
-      where a.id::text = (storage.foldername(name))[1]
-      and a.created_by = auth.uid()
-    )
-  );
+  using (bucket_id = 'audit-files' and auth.role() = 'authenticated');
 
+drop policy if exists "audit_files_storage_insert_own" on storage.objects;
 create policy "audit_files_storage_insert_own"
   on storage.objects for insert
-  with check (
-    bucket_id = 'audit-files'
-    and exists (
-      select 1 from public.audits a
-      where a.id::text = (storage.foldername(name))[1]
-      and a.created_by = auth.uid()
-    )
-  );
+  with check (bucket_id = 'audit-files' and auth.role() = 'authenticated');
 
+drop policy if exists "audit_files_storage_update_own" on storage.objects;
 create policy "audit_files_storage_update_own"
   on storage.objects for update
-  using (
-    bucket_id = 'audit-files'
-    and exists (
-      select 1 from public.audits a
-      where a.id::text = (storage.foldername(name))[1]
-      and a.created_by = auth.uid()
-    )
-  );
+  using (bucket_id = 'audit-files' and auth.role() = 'authenticated');
 
+drop policy if exists "audit_files_storage_delete_own" on storage.objects;
 create policy "audit_files_storage_delete_own"
   on storage.objects for delete
-  using (
-    bucket_id = 'audit-files'
-    and exists (
-      select 1 from public.audits a
-      where a.id::text = (storage.foldername(name))[1]
-      and a.created_by = auth.uid()
-    )
-  );
+  using (bucket_id = 'audit-files' and auth.role() = 'authenticated');

@@ -40,7 +40,10 @@
       "Bash(curl -s -o /dev/null -w \"login: %{http_code}\\\\n\" http://localhost:3000/login)",
       "Bash(curl -s -o /dev/null -w \"dashboard \\(should redirect\\): %{http_code}\\\\n\" http://localhost:3000/dashboard)",
       "Bash(kill 10879)",
-      "Bash(curl -sf http://localhost:3000/login -o /dev/null)"
+      "Bash(curl -sf http://localhost:3000/login -o /dev/null)",
+      "Bash(kill 12771)",
+      "Bash(kill 15892)",
+      "Bash(kill 16458)"
     ]
   }
 }

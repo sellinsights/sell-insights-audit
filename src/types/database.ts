@@ -52,6 +52,11 @@ export type AuditRow = {
   marketplace: string | null;
   created_by: string;
   created_at: string;
+  /** Bumped by a DB trigger on every UPDATE — the cache-invalidation check on
+   * the audit dashboard compares this against the cached value to detect
+   * changes made from another device/session. Nullable at the type level for
+   * the same reason as `marketplace`: rows that predate the column. */
+  updated_at: string | null;
 };
 
 export type AuditFileRow = {
@@ -189,8 +194,8 @@ export type Database = {
       >;
       audits: TableDef<
         AuditRow,
-        Omit<AuditRow, "id" | "created_at" | "status" | "marketplace"> &
-          Partial<Pick<AuditRow, "id" | "created_at" | "status" | "marketplace">>
+        Omit<AuditRow, "id" | "created_at" | "updated_at" | "status" | "marketplace"> &
+          Partial<Pick<AuditRow, "id" | "created_at" | "updated_at" | "status" | "marketplace">>
       >;
       audit_files: TableDef<
         AuditFileRow,

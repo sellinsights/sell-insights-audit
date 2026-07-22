@@ -15,6 +15,7 @@ import {
 } from "@/lib/data/rpc";
 import { withTimeout } from "@/lib/withTimeout";
 import { formatCurrency, formatDecimal, formatNumber, formatPercent } from "@/lib/format";
+import { formatCount } from "@/lib/formatCount";
 
 const FETCH_TIMEOUT_MS = 30_000;
 
@@ -134,6 +135,7 @@ export function BrandedVsNonBrandedSection({
     <SectionCard
       title="Branded vs Non-Branded"
       description={loading ? "Loading…" : verdict}
+      count={formatCount(2, "category", "categories")}
       sectionKey={sectionKey}
       actions={
         <div className="flex overflow-hidden rounded-md border border-neutral-300 text-xs font-semibold">
@@ -182,20 +184,25 @@ export function BrandedVsNonBrandedSection({
 
       {expanded && (
         <div className="mt-3">
-          {(expanded === "branded" ? data.branded.searchTermCount : data.nonBranded.searchTermCount) > 100 && (
-            <p className="mb-2 text-xs text-neutral-400">Showing top 100 by spend.</p>
-          )}
           {expandedLoading ? (
             <div className="flex justify-center py-8">
               <div className="h-5 w-5 animate-spin rounded-full border-2 border-green border-t-transparent" />
             </div>
           ) : (
-            <DataTable
-              columns={termColumns}
-              rows={expandedTerms}
-              keyFn={(r, i) => `${r.customerSearchTerm}-${i}`}
-              maxHeightPx={400}
-            />
+            <>
+              <p className="mb-2 text-xs text-[var(--text-muted)]">
+                {formatCount(expandedTerms.length, "search term")}
+                {(expanded === "branded" ? data.branded.searchTermCount : data.nonBranded.searchTermCount) > 100
+                  ? " — showing top 100 by spend."
+                  : ""}
+              </p>
+              <DataTable
+                columns={termColumns}
+                rows={expandedTerms}
+                keyFn={(r, i) => `${r.customerSearchTerm}-${i}`}
+                maxHeightPx={400}
+              />
+            </>
           )}
         </div>
       )}

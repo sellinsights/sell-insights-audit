@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
-import { fetchBrands } from "@/lib/data/brands";
+import { fetchBrandCount, fetchBrands } from "@/lib/data/brands";
 import { writeCache, clearCache } from "@/lib/cache/localCache";
 import { useLocalCacheEntry } from "@/lib/cache/useLocalCacheEntry";
 import { cacheKeys } from "@/lib/cache/cacheKeys";
@@ -20,6 +20,7 @@ export default function DashboardPage() {
   const [fetching, setFetching] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const fetchingRef = useRef(false);
+  const staleCheckedRef = useRef(false);
 
   const fetchFresh = useCallback(async () => {
     if (fetchingRef.current) return;
@@ -49,6 +50,37 @@ export default function DashboardPage() {
     const timeoutId = setTimeout(() => void fetchFresh(), 0);
     return () => clearTimeout(timeoutId);
   }, [cacheEntry, fetchFresh]);
+
+  // Smart cache invalidation: a cache hit renders instantly from localStorage,
+  // but that snapshot could predate a brand created by a teammate on another
+  // device. One `head: true` count query is cheap enough to run on every load
+  // without giving up the instant render — only a mismatch triggers a real
+  // re-fetch. Runs once per mount (not on every cache write) via the ref guard.
+  const checkStale = useCallback(async () => {
+    if (!cacheEntry) return;
+    try {
+      const supabase = createClient();
+      const liveCount = await withTimeout(fetchBrandCount(supabase), FETCH_TIMEOUT_MS, "Brand count check");
+      if (liveCount !== cacheEntry.data.length) {
+        console.log(
+          `[CLIENT PERF] brand count changed (cached ${cacheEntry.data.length} -> live ${liveCount}) — invalidating cache`
+        );
+        clearCache(CACHE_KEY);
+        await fetchFresh();
+      } else {
+        console.log(`[CLIENT PERF] brand count check: still ${liveCount}, cache is fresh`);
+      }
+    } catch (err) {
+      console.warn("[CLIENT PERF] brand count check failed — keeping cached data:", err);
+    }
+  }, [cacheEntry, fetchFresh]);
+
+  useEffect(() => {
+    if (!cacheEntry || staleCheckedRef.current) return;
+    staleCheckedRef.current = true;
+    const timeoutId = setTimeout(() => void checkStale(), 0);
+    return () => clearTimeout(timeoutId);
+  }, [cacheEntry, checkStale]);
 
   function handleRefresh() {
     clearCache(CACHE_KEY);
