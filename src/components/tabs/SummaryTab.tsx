@@ -7,32 +7,102 @@ import type { AdvertisedAsinRow, TopAsinRow } from "@/lib/data/rpc";
 import type { AuditData } from "@/lib/data/audit";
 
 const topAsinColumns: Column<TopAsinRow>[] = [
-  { key: "asin", header: "ASIN", render: (r) => <span className="font-medium text-navy">{r.asin}</span> },
-  { key: "units", header: "Units Ordered", align: "right", render: (r) => formatNumber(r.unitsOrdered) },
-  { key: "revenue", header: "Revenue", align: "right", render: (r) => formatCurrency(r.revenue) },
-  { key: "aov", header: "AOV", align: "right", render: (r) => formatCurrency(r.aov) },
-  { key: "cvr", header: "CVR%", align: "right", render: (r) => formatPercent(r.cvr) },
-  { key: "sessions", header: "Sessions", align: "right", render: (r) => formatNumber(r.sessions) },
-  { key: "pvps", header: "Page Views / Session", align: "right", render: (r) => formatDecimal(r.pageViewsPerSession) },
-  { key: "spSpend", header: "Ad Spend (SP)", align: "right", render: (r) => formatCurrency(r.spSpend) },
-  { key: "spTacos", header: "TACOS% (SP)", align: "right", render: (r) => formatPercent(r.spTacos) },
-  { key: "pctSpSpend", header: "% of SP Spend", align: "right", render: (r) => formatPercent(r.pctOfSpSpend) },
-  { key: "pctUnits", header: "% of Unit Sales", align: "right", render: (r) => formatPercent(r.pctOfUnitSales) },
+  {
+    key: "asin",
+    header: "ASIN",
+    render: (r) => <span className="font-medium text-navy">{r.asin}</span>,
+    sortValue: (r) => r.asin,
+  },
+  {
+    key: "units",
+    header: "Units Ordered",
+    align: "right",
+    render: (r) => formatNumber(r.unitsOrdered),
+    sortValue: (r) => r.unitsOrdered,
+  },
+  { key: "revenue", header: "Revenue", align: "right", render: (r) => formatCurrency(r.revenue), sortValue: (r) => r.revenue },
+  { key: "aov", header: "AOV", align: "right", render: (r) => formatCurrency(r.aov), sortValue: (r) => r.aov },
+  { key: "cvr", header: "PPC CVR%", align: "right", render: (r) => formatPercent(r.cvr), sortValue: (r) => r.cvr },
+  {
+    key: "sessions",
+    header: "Sessions",
+    align: "right",
+    render: (r) => formatNumber(r.sessions),
+    sortValue: (r) => r.sessions,
+  },
+  {
+    key: "pvps",
+    header: "Page Views / Session",
+    align: "right",
+    render: (r) => formatDecimal(r.pageViewsPerSession),
+    sortValue: (r) => r.pageViewsPerSession,
+  },
+  {
+    key: "spSpend",
+    header: "Ad Spend (SP)",
+    align: "right",
+    render: (r) => formatCurrency(r.spSpend),
+    sortValue: (r) => r.spSpend,
+  },
+  {
+    key: "spTacos",
+    header: "TACOS% (SP)",
+    align: "right",
+    render: (r) => formatPercent(r.spTacos),
+    sortValue: (r) => r.spTacos,
+  },
+  {
+    key: "pctSpSpend",
+    header: "% of SP Spend",
+    align: "right",
+    render: (r) => formatPercent(r.pctOfSpSpend),
+    sortValue: (r) => r.pctOfSpSpend,
+  },
+  {
+    key: "pctUnits",
+    header: "% of Unit Sales",
+    align: "right",
+    render: (r) => formatPercent(r.pctOfUnitSales),
+    sortValue: (r) => r.pctOfUnitSales,
+  },
 ];
 
 const advertisedColumns: Column<AdvertisedAsinRow>[] = [
-  { key: "asin", header: "ASIN", render: (r) => <span className="font-medium text-navy">{r.asin}</span> },
-  { key: "impressions", header: "Impressions", align: "right", render: (r) => formatNumber(r.impressions) },
-  { key: "clicks", header: "Clicks", align: "right", render: (r) => formatNumber(r.clicks) },
-  { key: "orders", header: "Orders", align: "right", render: (r) => formatNumber(r.orders) },
-  { key: "spend", header: "Spend", align: "right", render: (r) => formatCurrency(r.spend) },
-  { key: "sales", header: "Sales", align: "right", render: (r) => formatCurrency(r.sales) },
-  { key: "cpc", header: "CPC", align: "right", render: (r) => formatCurrency(r.cpc) },
-  { key: "acos", header: "ACOS", align: "right", render: (r) => formatPercent(r.acos) },
-  { key: "roas", header: "ROAS", align: "right", render: (r) => formatDecimal(r.roas) },
-  { key: "cvr", header: "CVR%", align: "right", render: (r) => formatPercent(r.cvr) },
-  { key: "pctSpend", header: "% of Spend", align: "right", render: (r) => formatPercent(r.pctOfSpend) },
-  { key: "pctSales", header: "% of Sales", align: "right", render: (r) => formatPercent(r.pctOfSales) },
+  {
+    key: "asin",
+    header: "ASIN",
+    render: (r) => <span className="font-medium text-navy">{r.asin}</span>,
+    sortValue: (r) => r.asin,
+  },
+  {
+    key: "impressions",
+    header: "Impressions",
+    align: "right",
+    render: (r) => formatNumber(r.impressions),
+    sortValue: (r) => r.impressions,
+  },
+  { key: "clicks", header: "Clicks", align: "right", render: (r) => formatNumber(r.clicks), sortValue: (r) => r.clicks },
+  { key: "orders", header: "Orders", align: "right", render: (r) => formatNumber(r.orders), sortValue: (r) => r.orders },
+  { key: "spend", header: "Spend", align: "right", render: (r) => formatCurrency(r.spend), sortValue: (r) => r.spend },
+  { key: "sales", header: "Sales", align: "right", render: (r) => formatCurrency(r.sales), sortValue: (r) => r.sales },
+  { key: "cpc", header: "CPC", align: "right", render: (r) => formatCurrency(r.cpc), sortValue: (r) => r.cpc },
+  { key: "acos", header: "ACOS", align: "right", render: (r) => formatPercent(r.acos), sortValue: (r) => r.acos },
+  { key: "roas", header: "ROAS", align: "right", render: (r) => formatDecimal(r.roas), sortValue: (r) => r.roas },
+  { key: "cvr", header: "PPC CVR%", align: "right", render: (r) => formatPercent(r.cvr), sortValue: (r) => r.cvr },
+  {
+    key: "pctSpend",
+    header: "% of Spend",
+    align: "right",
+    render: (r) => formatPercent(r.pctOfSpend),
+    sortValue: (r) => r.pctOfSpend,
+  },
+  {
+    key: "pctSales",
+    header: "% of Sales",
+    align: "right",
+    render: (r) => formatPercent(r.pctOfSales),
+    sortValue: (r) => r.pctOfSales,
+  },
 ];
 
 export const SummaryTab = memo(function SummaryTab({ data }: { data: AuditData }) {
@@ -45,7 +115,7 @@ export const SummaryTab = memo(function SummaryTab({ data }: { data: AuditData }
           <KpiCard label="Total Revenue" value={formatCurrency(kpis.totalRevenue)} />
           <KpiCard label="Total Spend" value={formatCurrency(kpis.totalSpend)} />
           <KpiCard label="TACOS" value={formatPercent(kpis.tacos)} />
-          <KpiCard label="Average CVR%" value={formatPercent(kpis.avgCvr)} />
+          <KpiCard label="Avg PPC CVR%" value={formatPercent(kpis.avgCvr)} />
           <KpiCard label="Total Units" value={formatNumber(kpis.totalUnits)} />
         </div>
       </SectionCard>

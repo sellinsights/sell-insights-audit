@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { AuditRow, Database } from "@/types/database";
+import { withAuthRetry } from "@/lib/supabase/authRetry";
 import {
   fetchAdTypeSplit,
   fetchAdvertisedAsinPerformance,
@@ -63,11 +64,9 @@ export async function fetchAuditData(supabase: SupabaseClient<Database>, auditId
   console.time(perfLabel);
   try {
     console.time("[PERF] fetchAuditData audits row");
-    const { data: audit, error: auditError } = await supabase
-      .from("audits")
-      .select("*")
-      .eq("id", auditId)
-      .single();
+    const { data: audit, error: auditError } = await withAuthRetry(supabase, () =>
+      supabase.from("audits").select("*").eq("id", auditId).single()
+    );
     console.timeEnd("[PERF] fetchAuditData audits row");
     if (auditError) {
       // PGRST116 = "no rows" — expected when RLS hides the row (not this
@@ -138,7 +137,9 @@ export async function fetchBrandName(
 ): Promise<string | null> {
   console.time(`[PERF] fetchBrandName ${brandId}`);
   try {
-    const { data, error } = await supabase.from("brands").select("name").eq("id", brandId).single();
+    const { data, error } = await withAuthRetry(supabase, () =>
+      supabase.from("brands").select("name").eq("id", brandId).single()
+    );
     if (error) {
       console.error(`[PERF] fetchBrandName — query failed for ${brandId}:`, error);
       return null;

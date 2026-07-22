@@ -61,6 +61,11 @@ create index if not exists sb_search_term_data_zero_order_spend_idx
 -- Shared helper — derives cpc/acos/roas/cvr/pct_of_spend/pct_of_sales exactly
 -- the way src/lib/calculations/aggregate.ts's deriveMetrics() does client-side
 -- today, so every function below stays consistent with one formula each.
+-- cvr here is always PPC CVR% = orders ÷ clicks × 100 (never a business
+-- report session-based conversion rate) — every function that calls this
+-- helper (ad_type_split, auto_manual_split, match_type_analysis, placements,
+-- bidding_strategy, branded_split, advertised_asin_performance) already gets
+-- the correct PPC formula for free.
 -- ============================================================================
 create or replace function public.fn_derive_metrics(
   p_clicks bigint,
@@ -85,7 +90,7 @@ as $$
     case when coalesce(p_clicks, 0) > 0 then p_spend / p_clicks else null end,
     case when coalesce(p_sales, 0) > 0 then (p_spend / p_sales) * 100 else null end,
     case when coalesce(p_spend, 0) > 0 then p_sales / p_spend else null end,
-    case when coalesce(p_clicks, 0) > 0 then (p_orders::numeric / p_clicks) * 100 else null end,
+    (p_orders::numeric / nullif(coalesce(p_clicks, 0), 0)) * 100,
     case when coalesce(p_total_spend, 0) > 0 then (p_spend / p_total_spend) * 100 else 0 end,
     case when coalesce(p_total_sales, 0) > 0 then (p_sales / p_total_sales) * 100 else 0 end;
 $$;
@@ -94,6 +99,13 @@ $$;
 -- ============================================================================
 -- 1. fn_summary_kpis — Overall Performance KPI row (Summary tab)
 -- Mirrors computeOverallKpis() in src/lib/calculations/summary.ts
+--
+-- avg_cvr is PPC CVR%: total PPC orders ÷ total PPC clicks across SP+SB+SD
+-- campaign data (entity = Campaign) — a weighted ratio-of-sums, same
+-- methodology as every other CVR% in the app, NOT an average of the
+-- business report's session-based unit_session_percentage. Returned already
+-- multiplied by 100 (e.g. 12.5, meaning "12.5%") — the UI just appends "%",
+-- it does not divide, so this must never be returned as a 0-1 fraction.
 -- ============================================================================
 create or replace function public.fn_summary_kpis(p_audit_id uuid)
 returns table (
@@ -109,28 +121,37 @@ as $$
   with br as (
     select
       coalesce(sum(ordered_product_sales), 0)::numeric as total_revenue,
-      coalesce(sum(units_ordered), 0)::bigint as total_units,
-      avg(unit_session_percentage) as avg_cvr -- Postgres AVG already skips NULLs
+      coalesce(sum(units_ordered), 0)::bigint as total_units
     from public.business_report_data
     where audit_id = p_audit_id
   ),
-  spend as (
+  campaigns as (
+    select spend, clicks, orders
+    from public.sp_campaign_data
+    where audit_id = p_audit_id and trim(lower(entity)) = 'campaign'
+    union all
+    select spend, clicks, orders
+    from public.sb_campaign_data
+    where audit_id = p_audit_id and trim(lower(entity)) = 'campaign'
+    union all
+    select spend, clicks, orders
+    from public.sd_campaign_data
+    where audit_id = p_audit_id and trim(lower(entity)) = 'campaign'
+  ),
+  ppc as (
     select
-      coalesce((select sum(spend) from public.sp_campaign_data
-                where audit_id = p_audit_id and trim(lower(entity)) = 'campaign'), 0)
-      + coalesce((select sum(spend) from public.sb_campaign_data
-                  where audit_id = p_audit_id and trim(lower(entity)) = 'campaign'), 0)
-      + coalesce((select sum(spend) from public.sd_campaign_data
-                  where audit_id = p_audit_id and trim(lower(entity)) = 'campaign'), 0)
-      as total_spend
+      coalesce(sum(spend), 0)::numeric as total_spend,
+      coalesce(sum(clicks), 0)::numeric as total_clicks,
+      coalesce(sum(orders), 0)::numeric as total_orders
+    from campaigns
   )
   select
     br.total_revenue,
-    spend.total_spend,
-    case when br.total_revenue > 0 then (spend.total_spend / br.total_revenue) * 100 else null end,
-    br.avg_cvr,
+    ppc.total_spend,
+    case when br.total_revenue > 0 then (ppc.total_spend / br.total_revenue) * 100 else null end,
+    (ppc.total_orders / nullif(ppc.total_clicks, 0)) * 100,
     br.total_units
-  from br, spend;
+  from br, ppc;
 $$;
 
 
@@ -138,6 +159,10 @@ $$;
 -- 2. fn_top_asins — Top 10 ASINs by Units Ordered (Summary tab)
 -- Mirrors computeTopAsins()
 -- ============================================================================
+-- cvr is PPC CVR%: this ASIN's SP orders ÷ SP clicks (entity = Product Ad),
+-- NOT the business report's session-based unit_session_percentage. Returned
+-- already multiplied by 100 (e.g. 12.5, meaning "12.5%") — the UI just
+-- appends "%", it does not divide.
 create or replace function public.fn_top_asins(p_audit_id uuid, p_limit int default 10)
 returns table (
   asin text,
@@ -156,15 +181,18 @@ returns table (
 language sql
 stable
 as $$
-  with spend_by_asin as (
-    select asin, coalesce(sum(spend), 0) as spend
+  with sp_by_asin as (
+    select asin,
+           coalesce(sum(spend), 0) as spend,
+           coalesce(sum(clicks), 0) as clicks,
+           coalesce(sum(orders), 0) as orders
     from public.sp_campaign_data
     where audit_id = p_audit_id and trim(lower(entity)) = 'product ad' and asin is not null
     group by asin
   ),
   totals as (
     select
-      coalesce((select sum(spend) from spend_by_asin), 0) as total_sp_spend,
+      coalesce((select sum(spend) from sp_by_asin), 0) as total_sp_spend,
       coalesce((select sum(units_ordered) from public.business_report_data where audit_id = p_audit_id), 0) as total_units
   )
   select
@@ -175,7 +203,7 @@ as $$
     case when coalesce(br.units_ordered, 0) > 0
       then coalesce(br.ordered_product_sales, 0) / br.units_ordered
       else null end,
-    br.unit_session_percentage,
+    (coalesce(sba.orders, 0)::numeric / nullif(coalesce(sba.clicks, 0), 0)) * 100,
     coalesce(br.sessions_total, 0)::bigint,
     case when coalesce(br.sessions_total, 0) > 0
       then coalesce(br.page_views_total, 0)::numeric / br.sessions_total
@@ -188,7 +216,7 @@ as $$
     case when t.total_units > 0 then (coalesce(br.units_ordered, 0)::numeric / t.total_units) * 100 else 0 end
   from public.business_report_data br
   cross join totals t
-  left join spend_by_asin sba on sba.asin = br.child_asin
+  left join sp_by_asin sba on sba.asin = br.child_asin
   where br.audit_id = p_audit_id and br.child_asin is not null
   order by coalesce(br.units_ordered, 0) desc
   limit p_limit;

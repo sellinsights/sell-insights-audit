@@ -19,12 +19,29 @@ const FILTERS: { value: BleederTermFilter; label: string }[] = [
 ];
 
 const columns: Column<BleederRow>[] = [
-  { key: "term", header: "Customer Search Term", render: (r) => r.customerSearchTerm },
-  { key: "spend", header: "Spend", align: "right", render: (r) => formatCurrency(r.spend) },
-  { key: "orders", header: "Orders", align: "right", render: (r) => formatNumber(r.orders) },
-  { key: "clicks", header: "Clicks", align: "right", render: (r) => formatNumber(r.clicks) },
-  { key: "avgCpc", header: "Avg CPC", align: "right", render: (r) => formatCurrency(r.avgCpc) },
-  { key: "highestCpc", header: "Highest CPC", align: "right", render: (r) => formatCurrency(r.highestCpc) },
+  {
+    key: "term",
+    header: "Customer Search Term",
+    render: (r) => r.customerSearchTerm,
+    sortValue: (r) => r.customerSearchTerm,
+  },
+  { key: "spend", header: "Spend", align: "right", render: (r) => formatCurrency(r.spend), sortValue: (r) => r.spend },
+  { key: "orders", header: "Orders", align: "right", render: (r) => formatNumber(r.orders), sortValue: (r) => r.orders },
+  { key: "clicks", header: "Clicks", align: "right", render: (r) => formatNumber(r.clicks), sortValue: (r) => r.clicks },
+  {
+    key: "avgCpc",
+    header: "Avg CPC",
+    align: "right",
+    render: (r) => formatCurrency(r.avgCpc),
+    sortValue: (r) => r.avgCpc,
+  },
+  {
+    key: "highestCpc",
+    header: "Highest CPC",
+    align: "right",
+    render: (r) => formatCurrency(r.highestCpc),
+    sortValue: (r) => r.highestCpc,
+  },
 ];
 
 function BleederTable({ title, description, rows }: { title: string; description: string; rows: BleederRow[] }) {

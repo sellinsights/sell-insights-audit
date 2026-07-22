@@ -1,4 +1,7 @@
+"use client";
+
 import type { ReactNode } from "react";
+import { useSortableRows } from "@/lib/useSortableRows";
 
 export interface Column<T> {
   key: string;
@@ -6,6 +9,9 @@ export interface Column<T> {
   align?: "left" | "right" | "center";
   render: (row: T) => ReactNode;
   className?: string;
+  /** Raw comparable value for this column. Omit to make the column
+   * unsortable (its header won't be clickable). */
+  sortValue?: (row: T) => string | number | null;
 }
 
 interface DataTableProps<T> {
@@ -27,31 +33,47 @@ export function DataTable<T>({
   maxHeightPx,
   emptyMessage = "No data for this audit.",
 }: DataTableProps<T>) {
+  const { sortedRows, sortKey, sortDirection, toggleSort } = useSortableRows(rows, (row, key) => {
+    const col = columns.find((c) => c.key === key);
+    return col?.sortValue ? col.sortValue(row) : null;
+  });
+
   return (
     <div className="overflow-hidden rounded-lg border border-black/5 bg-white shadow-sm">
       <div className="overflow-x-auto" style={maxHeightPx ? { maxHeight: maxHeightPx, overflowY: "auto" } : undefined}>
         <table className="w-full min-w-max border-collapse text-sm">
           <thead className="sticky top-0 z-10">
             <tr className="bg-navy">
-              {columns.map((col) => (
-                <th
-                  key={col.key}
-                  className={`whitespace-nowrap px-4 py-3 text-xs font-semibold uppercase tracking-wide text-white ${alignClass[col.align ?? "left"]}`}
-                >
-                  {col.header}
-                </th>
-              ))}
+              {columns.map((col) => {
+                const sortable = !!col.sortValue;
+                const active = sortable && sortKey === col.key;
+                return (
+                  <th
+                    key={col.key}
+                    onClick={sortable ? () => toggleSort(col.key) : undefined}
+                    aria-sort={active ? (sortDirection === "asc" ? "ascending" : "descending") : undefined}
+                    className={`whitespace-nowrap px-4 py-3 text-xs font-semibold uppercase tracking-wide text-white ${alignClass[col.align ?? "left"]} ${
+                      sortable ? "cursor-pointer select-none transition-colors hover:bg-white/10" : ""
+                    }`}
+                  >
+                    <span className="inline-flex items-center gap-1">
+                      {col.header}
+                      {active && <span aria-hidden="true">{sortDirection === "desc" ? "▼" : "▲"}</span>}
+                    </span>
+                  </th>
+                );
+              })}
             </tr>
           </thead>
           <tbody>
-            {rows.length === 0 ? (
+            {sortedRows.length === 0 ? (
               <tr>
                 <td colSpan={columns.length} className="px-4 py-8 text-center text-sm text-neutral-400">
                   {emptyMessage}
                 </td>
               </tr>
             ) : (
-              rows.map((row, i) => (
+              sortedRows.map((row, i) => (
                 <tr key={keyFn ? keyFn(row, i) : i} className="border-t border-black/5 even:bg-neutral-50 hover:bg-green-light/40">
                   {columns.map((col) => (
                     <td

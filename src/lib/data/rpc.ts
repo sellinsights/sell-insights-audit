@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/database";
+import { withAuthRetry } from "@/lib/supabase/authRetry";
 
 /** camelCase shapes the dashboard components render — kept identical to the
  * old client-computed types (LabeledMetricsRow etc.) so metricsColumns() and
@@ -136,7 +137,9 @@ function splitGrandTotal<T extends { label: string }>(rows: T[]): { rows: T[]; g
 export async function fetchSummaryKpis(supabase: SupabaseClient<Database>, auditId: string): Promise<OverallKpis> {
   console.time(`[PERF] rpc fn_summary_kpis ${auditId}`);
   try {
-    const { data, error } = await supabase.rpc("fn_summary_kpis", { p_audit_id: auditId });
+    const { data, error } = await withAuthRetry(supabase, () =>
+      supabase.rpc("fn_summary_kpis", { p_audit_id: auditId })
+    );
     if (error) {
       console.error("[PERF] fn_summary_kpis failed:", error);
       throw new Error(error.message);
@@ -157,7 +160,9 @@ export async function fetchSummaryKpis(supabase: SupabaseClient<Database>, audit
 export async function fetchTopAsins(supabase: SupabaseClient<Database>, auditId: string): Promise<TopAsinRow[]> {
   console.time(`[PERF] rpc fn_top_asins ${auditId}`);
   try {
-    const { data, error } = await supabase.rpc("fn_top_asins", { p_audit_id: auditId, p_limit: 10 });
+    const { data, error } = await withAuthRetry(supabase, () =>
+      supabase.rpc("fn_top_asins", { p_audit_id: auditId, p_limit: 10 })
+    );
     if (error) {
       console.error("[PERF] fn_top_asins failed:", error);
       throw new Error(error.message);
@@ -187,7 +192,9 @@ export async function fetchAdvertisedAsinPerformance(
 ): Promise<AdvertisedAsinRow[]> {
   console.time(`[PERF] rpc fn_advertised_asin_performance ${auditId}`);
   try {
-    const { data, error } = await supabase.rpc("fn_advertised_asin_performance", { p_audit_id: auditId });
+    const { data, error } = await withAuthRetry(supabase, () =>
+      supabase.rpc("fn_advertised_asin_performance", { p_audit_id: auditId })
+    );
     if (error) {
       console.error("[PERF] fn_advertised_asin_performance failed:", error);
       throw new Error(error.message);
@@ -218,7 +225,7 @@ async function fetchLabeledRows(
 ): Promise<{ rows: LabeledMetricsRow[]; grandTotal: LabeledMetricsRow | undefined }> {
   console.time(`[PERF] rpc ${fnName} ${auditId}`);
   try {
-    const { data, error } = await supabase.rpc(fnName, { p_audit_id: auditId });
+    const { data, error } = await withAuthRetry(supabase, () => supabase.rpc(fnName, { p_audit_id: auditId }));
     if (error) {
       console.error(`[PERF] ${fnName} failed:`, error);
       throw new Error(error.message);
@@ -248,7 +255,9 @@ export async function fetchMatchTypeAnalysis(
 ): Promise<{ rows: LabeledMetricsRow[]; grandTotal: LabeledMetricsRow | undefined }> {
   console.time(`[PERF] rpc fn_match_type_analysis ${adType} ${auditId}`);
   try {
-    const { data, error } = await supabase.rpc("fn_match_type_analysis", { p_audit_id: auditId, p_ad_type: adType });
+    const { data, error } = await withAuthRetry(supabase, () =>
+      supabase.rpc("fn_match_type_analysis", { p_audit_id: auditId, p_ad_type: adType })
+    );
     if (error) {
       console.error("[PERF] fn_match_type_analysis failed:", error);
       throw new Error(error.message);
@@ -268,7 +277,9 @@ export async function fetchBrandedSplit(
 ): Promise<{ branded: BrandedSplitRow; nonBranded: BrandedSplitRow; grandTotal: BrandedSplitRow }> {
   console.time(`[PERF] rpc fn_branded_split ${scope} ${auditId}`);
   try {
-    const { data, error } = await supabase.rpc("fn_branded_split", { p_audit_id: auditId, p_term_filter: scope });
+    const { data, error } = await withAuthRetry(supabase, () =>
+      supabase.rpc("fn_branded_split", { p_audit_id: auditId, p_term_filter: scope })
+    );
     if (error) {
       console.error("[PERF] fn_branded_split failed:", error);
       throw new Error(error.message);
@@ -318,13 +329,15 @@ export async function fetchBrandedSearchTerms(
 ): Promise<BrandedSearchTermRow[]> {
   console.time(`[PERF] rpc fn_branded_search_terms ${scope}/${branded} ${auditId}`);
   try {
-    const { data, error } = await supabase.rpc("fn_branded_search_terms", {
-      p_audit_id: auditId,
-      p_term_filter: scope,
-      p_branded: branded,
-      p_limit: limit,
-      p_offset: offset,
-    });
+    const { data, error } = await withAuthRetry(supabase, () =>
+      supabase.rpc("fn_branded_search_terms", {
+        p_audit_id: auditId,
+        p_term_filter: scope,
+        p_branded: branded,
+        p_limit: limit,
+        p_offset: offset,
+      })
+    );
     if (error) {
       console.error("[PERF] fn_branded_search_terms failed:", error);
       throw new Error(error.message);
@@ -351,12 +364,14 @@ export async function fetchWastedSpend(
 ): Promise<{ rows: WastedSpendRow[]; grandTotal: WastedSpendRow }> {
   console.time(`[PERF] rpc fn_wasted_spend ${adType} ${minClicks}-${maxClicks ?? "+"} ${auditId}`);
   try {
-    const { data, error } = await supabase.rpc("fn_wasted_spend", {
-      p_audit_id: auditId,
-      p_ad_type: adType,
-      p_min_clicks: minClicks,
-      p_max_clicks: maxClicks,
-    });
+    const { data, error } = await withAuthRetry(supabase, () =>
+      supabase.rpc("fn_wasted_spend", {
+        p_audit_id: auditId,
+        p_ad_type: adType,
+        p_min_clicks: minClicks,
+        p_max_clicks: maxClicks,
+      })
+    );
     if (error) {
       console.error("[PERF] fn_wasted_spend failed:", error);
       throw new Error(error.message);
@@ -397,15 +412,17 @@ export async function fetchBleeders(
 ): Promise<BleederRow[]> {
   console.time(`[PERF] rpc fn_bleeders ${adType} ${minSpend}-${maxSpend ?? "+"} ${termType} ${auditId}`);
   try {
-    const { data, error } = await supabase.rpc("fn_bleeders", {
-      p_audit_id: auditId,
-      p_ad_type: adType,
-      p_min_spend: minSpend,
-      p_max_spend: maxSpend,
-      p_term_type: termType,
-      p_limit: limit,
-      p_offset: offset,
-    });
+    const { data, error } = await withAuthRetry(supabase, () =>
+      supabase.rpc("fn_bleeders", {
+        p_audit_id: auditId,
+        p_ad_type: adType,
+        p_min_spend: minSpend,
+        p_max_spend: maxSpend,
+        p_term_type: termType,
+        p_limit: limit,
+        p_offset: offset,
+      })
+    );
     if (error) {
       console.error("[PERF] fn_bleeders failed:", error);
       throw new Error(error.message);

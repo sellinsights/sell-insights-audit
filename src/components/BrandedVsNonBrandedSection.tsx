@@ -24,12 +24,17 @@ const SCOPES: { value: BrandedScope; label: string }[] = [
 ];
 
 const termColumns: Column<BrandedSearchTermRow>[] = [
-  { key: "term", header: "Search Term", render: (r) => r.customerSearchTerm ?? "—" },
-  { key: "spend", header: "Spend", align: "right", render: (r) => formatCurrency(r.spend) },
-  { key: "orders", header: "Orders", align: "right", render: (r) => formatNumber(r.orders) },
-  { key: "clicks", header: "Clicks", align: "right", render: (r) => formatNumber(r.clicks) },
-  { key: "acos", header: "ACOS", align: "right", render: (r) => formatPercent(r.acos) },
-  { key: "roas", header: "ROAS", align: "right", render: (r) => formatDecimal(r.roas) },
+  {
+    key: "term",
+    header: "Search Term",
+    render: (r) => r.customerSearchTerm ?? "—",
+    sortValue: (r) => r.customerSearchTerm,
+  },
+  { key: "spend", header: "Spend", align: "right", render: (r) => formatCurrency(r.spend), sortValue: (r) => r.spend },
+  { key: "orders", header: "Orders", align: "right", render: (r) => formatNumber(r.orders), sortValue: (r) => r.orders },
+  { key: "clicks", header: "Clicks", align: "right", render: (r) => formatNumber(r.clicks), sortValue: (r) => r.clicks },
+  { key: "acos", header: "ACOS", align: "right", render: (r) => formatPercent(r.acos), sortValue: (r) => r.acos },
+  { key: "roas", header: "ROAS", align: "right", render: (r) => formatDecimal(r.roas), sortValue: (r) => r.roas },
 ];
 
 interface BrandedSplitTrio {
