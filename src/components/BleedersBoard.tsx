@@ -1,8 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { SectionCard } from "./SectionCard";
 import { DataTable, type Column } from "./DataTable";
+import { searchTermColumn } from "./amazonLinkColumns";
 import { createClient } from "@/lib/supabase/client";
 import { fetchBleeders, type BleederRow } from "@/lib/data/rpc";
 import { withTimeout } from "@/lib/withTimeout";
@@ -18,42 +19,41 @@ const FILTERS: { value: BleederTermFilter; label: string }[] = [
   { value: "asin", label: "ASINs only" },
 ];
 
-const columns: Column<BleederRow>[] = [
-  {
-    key: "term",
-    header: "Customer Search Term",
-    render: (r) => r.customerSearchTerm,
-    sortValue: (r) => r.customerSearchTerm,
-  },
-  { key: "spend", header: "Spend", align: "right", render: (r) => formatCurrency(r.spend), sortValue: (r) => r.spend },
-  { key: "orders", header: "Orders", align: "right", render: (r) => formatNumber(r.orders), sortValue: (r) => r.orders },
-  { key: "clicks", header: "Clicks", align: "right", render: (r) => formatNumber(r.clicks), sortValue: (r) => r.clicks },
-  {
-    key: "avgCpc",
-    header: "Avg CPC",
-    align: "right",
-    render: (r) => formatCurrency(r.avgCpc),
-    sortValue: (r) => r.avgCpc,
-  },
-  {
-    key: "highestCpc",
-    header: "Highest CPC",
-    align: "right",
-    render: (r) => formatCurrency(r.highestCpc),
-    sortValue: (r) => r.highestCpc,
-  },
-];
+function buildColumns(marketplace: string | null): Column<BleederRow>[] {
+  return [
+    searchTermColumn({ getTerm: (r) => r.customerSearchTerm, marketplace }),
+    { key: "spend", header: "Spend", align: "right", render: (r) => formatCurrency(r.spend), sortValue: (r) => r.spend },
+    { key: "orders", header: "Orders", align: "right", render: (r) => formatNumber(r.orders), sortValue: (r) => r.orders },
+    { key: "clicks", header: "Clicks", align: "right", render: (r) => formatNumber(r.clicks), sortValue: (r) => r.clicks },
+    {
+      key: "avgCpc",
+      header: "Avg CPC",
+      align: "right",
+      render: (r) => formatCurrency(r.avgCpc),
+      sortValue: (r) => r.avgCpc,
+    },
+    {
+      key: "highestCpc",
+      header: "Highest CPC",
+      align: "right",
+      render: (r) => formatCurrency(r.highestCpc),
+      sortValue: (r) => r.highestCpc,
+    },
+  ];
+}
 
 function BleederTable({
   title,
   description,
   rows,
   sectionKey,
+  columns,
 }: {
   title: string;
   description: string;
   rows: BleederRow[];
   sectionKey: string;
+  columns: Column<BleederRow>[];
 }) {
   return (
     <SectionCard title={title} description={description} sectionKey={sectionKey}>
@@ -75,11 +75,12 @@ interface BleedersData {
   sbUnder10: BleederRow[];
 }
 
-export function BleedersBoard({ auditId }: { auditId: string }) {
+export function BleedersBoard({ auditId, marketplace }: { auditId: string; marketplace: string | null }) {
   const [filter, setFilter] = useState<BleederTermFilter>("both");
   const [data, setData] = useState<BleedersData | null>(null);
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const columns = useMemo(() => buildColumns(marketplace), [marketplace]);
 
   const load = useCallback(
     async (termFilter: BleederTermFilter) => {
@@ -159,6 +160,7 @@ export function BleedersBoard({ auditId }: { auditId: string }) {
             description="Highest-priority cleanup: meaningful spend with zero orders. Top 100 by spend."
             rows={data.spOver10}
             sectionKey="bleeders_sp_over10"
+            columns={columns}
           />
           <div className="h-8" />
           <BleederTable
@@ -166,6 +168,7 @@ export function BleedersBoard({ auditId }: { auditId: string }) {
             description="Lower-priority, but still worth a negative-targeting pass at scale. Top 100 by spend."
             rows={data.spUnder10}
             sectionKey="bleeders_sp_under10"
+            columns={columns}
           />
           <div className="h-8" />
           <BleederTable
@@ -173,6 +176,7 @@ export function BleedersBoard({ auditId }: { auditId: string }) {
             description="Highest-priority cleanup: meaningful spend with zero orders. Top 100 by spend."
             rows={data.sbOver10}
             sectionKey="bleeders_sb_over10"
+            columns={columns}
           />
           <div className="h-8" />
           <BleederTable
@@ -180,6 +184,7 @@ export function BleedersBoard({ auditId }: { auditId: string }) {
             description="Lower-priority, but still worth a negative-targeting pass at scale. Top 100 by spend."
             rows={data.sbUnder10}
             sectionKey="bleeders_sb_under10"
+            columns={columns}
           />
         </div>
       )}

@@ -93,6 +93,19 @@ export interface BleederRow {
   highestCpc: number | null;
 }
 
+export interface OpportunityRow {
+  customerSearchTerm: string;
+  impressions: number;
+  clicks: number;
+  orders: number;
+  spend: number;
+  sales: number;
+  cpc: number | null;
+  acos: number | null;
+  roas: number | null;
+  cvr: number | null;
+}
+
 function toLabeledRow(r: {
   label: string;
   impressions: number;
@@ -442,3 +455,78 @@ export async function fetchBleeders(
     console.timeEnd(`[PERF] rpc fn_bleeders ${adType} ${minSpend}-${maxSpend ?? "+"} ${termType} ${auditId}`);
   }
 }
+
+export type OpportunityAdType = "sp" | "sb" | "both";
+export type OpportunityTermType = "keyword" | "asin" | "both";
+
+async function fetchOpportunityRows(
+  supabase: SupabaseClient<Database>,
+  fnName: "fn_acos_improvement" | "fn_scale_opportunities" | "fn_cost_reduction",
+  auditId: string,
+  adType: OpportunityAdType,
+  termType: OpportunityTermType,
+  limit: number,
+  offset: number
+): Promise<{ rows: OpportunityRow[]; totalCount: number }> {
+  console.time(`[PERF] rpc ${fnName} ${adType}/${termType} ${auditId}`);
+  try {
+    const { data, error } = await withAuthRetry(supabase, () =>
+      supabase.rpc(fnName, {
+        p_audit_id: auditId,
+        p_ad_type: adType,
+        p_term_type: termType,
+        p_limit: limit,
+        p_offset: offset,
+      })
+    );
+    if (error) {
+      console.error(`[PERF] ${fnName} failed:`, error);
+      throw new Error(error.message);
+    }
+    const rows = (data ?? []).map((r) => ({
+      customerSearchTerm: r.customer_search_term,
+      impressions: r.impressions,
+      clicks: r.clicks,
+      orders: r.orders,
+      spend: r.spend,
+      sales: r.sales,
+      cpc: r.cpc,
+      acos: r.acos,
+      roas: r.roas,
+      cvr: r.cvr,
+    }));
+    // total_count is denormalized onto every row (count(*) over() in SQL) —
+    // any row's value is the same, and there is none when the result is empty.
+    const totalCount = data?.[0]?.total_count ?? 0;
+    return { rows, totalCount };
+  } finally {
+    console.timeEnd(`[PERF] rpc ${fnName} ${adType}/${termType} ${auditId}`);
+  }
+}
+
+export const fetchAcosImprovement = (
+  supabase: SupabaseClient<Database>,
+  auditId: string,
+  adType: OpportunityAdType,
+  termType: OpportunityTermType,
+  limit = 100,
+  offset = 0
+) => fetchOpportunityRows(supabase, "fn_acos_improvement", auditId, adType, termType, limit, offset);
+
+export const fetchScaleOpportunities = (
+  supabase: SupabaseClient<Database>,
+  auditId: string,
+  adType: OpportunityAdType,
+  termType: OpportunityTermType,
+  limit = 100,
+  offset = 0
+) => fetchOpportunityRows(supabase, "fn_scale_opportunities", auditId, adType, termType, limit, offset);
+
+export const fetchCostReduction = (
+  supabase: SupabaseClient<Database>,
+  auditId: string,
+  adType: OpportunityAdType,
+  termType: OpportunityTermType,
+  limit = 100,
+  offset = 0
+) => fetchOpportunityRows(supabase, "fn_cost_reduction", auditId, adType, termType, limit, offset);

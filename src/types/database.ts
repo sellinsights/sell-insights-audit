@@ -16,6 +16,7 @@ import type {
   BrandedSearchTermRpcRow,
   BrandedSplitRpcRow,
   LabeledMetricsRpcRow,
+  OpportunityRpcRow,
   SummaryKpisRpcRow,
   TopAsinRpcRow,
   WastedSpendRpcRow,
@@ -43,6 +44,12 @@ export type AuditRow = {
   brand_id: string;
   title: string;
   status: AuditStatus;
+  /** Amazon marketplace this audit's data belongs to (e.g. "US", "UK") —
+   * see src/lib/marketplace.ts for the full supported list. Nullable at the
+   * type level because audits created before this column existed won't have
+   * it until the DB backfill runs; every marketplace-aware consumer treats
+   * null the same as "US". */
+  marketplace: string | null;
   created_by: string;
   created_at: string;
 };
@@ -182,8 +189,8 @@ export type Database = {
       >;
       audits: TableDef<
         AuditRow,
-        Omit<AuditRow, "id" | "created_at" | "status"> &
-          Partial<Pick<AuditRow, "id" | "created_at" | "status">>
+        Omit<AuditRow, "id" | "created_at" | "status" | "marketplace"> &
+          Partial<Pick<AuditRow, "id" | "created_at" | "status" | "marketplace">>
       >;
       audit_files: TableDef<
         AuditFileRow,
@@ -254,6 +261,18 @@ export type Database = {
           p_offset?: number;
         },
         BleederRpcRow[]
+      >;
+      fn_acos_improvement: FunctionDef<
+        { p_audit_id: string; p_ad_type?: string; p_term_type?: string; p_limit?: number; p_offset?: number },
+        OpportunityRpcRow[]
+      >;
+      fn_scale_opportunities: FunctionDef<
+        { p_audit_id: string; p_ad_type?: string; p_term_type?: string; p_limit?: number; p_offset?: number },
+        OpportunityRpcRow[]
+      >;
+      fn_cost_reduction: FunctionDef<
+        { p_audit_id: string; p_ad_type?: string; p_term_type?: string; p_limit?: number; p_offset?: number },
+        OpportunityRpcRow[]
       >;
     };
   };

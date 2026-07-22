@@ -32,7 +32,13 @@
       "Bash(npx --yes playwright screenshot --viewport-size=1280,900 http://localhost:3000/login /private/tmp/claude-501/-Users-hasanqayyum-sell-insights-audit/eee09824-cd14-4660-98dc-d6654c980cf3/scratchpad/login-page-2.png)",
       "Bash(ps -p 90564 -o pid,lstart,command)",
       "Bash(kill 90564)",
-      "Bash(sort /tmp/expected_keys.txt -o /tmp/expected_keys.txt)"
+      "Bash(sort /tmp/expected_keys.txt -o /tmp/expected_keys.txt)",
+      "Bash(lsof -ti:3000)",
+      "Bash(kill 7164)",
+      "Bash(disown)",
+      "Bash(curl -sf http://localhost:3000 -o /dev/null)",
+      "Bash(curl -s -o /dev/null -w \"login: %{http_code}\\\\n\" http://localhost:3000/login)",
+      "Bash(curl -s -o /dev/null -w \"dashboard \\(should redirect\\): %{http_code}\\\\n\" http://localhost:3000/dashboard)"
     ]
   }
 }

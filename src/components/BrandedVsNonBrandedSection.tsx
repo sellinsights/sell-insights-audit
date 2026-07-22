@@ -1,9 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { SectionCard } from "./SectionCard";
 import { DataTable, type Column } from "./DataTable";
 import { metricsColumns } from "./metricsTableColumns";
+import { searchTermColumn } from "./amazonLinkColumns";
 import { createClient } from "@/lib/supabase/client";
 import {
   fetchBrandedSearchTerms,
@@ -23,19 +24,16 @@ const SCOPES: { value: BrandedScope; label: string }[] = [
   { value: "sb", label: "SB only" },
 ];
 
-const termColumns: Column<BrandedSearchTermRow>[] = [
-  {
-    key: "term",
-    header: "Search Term",
-    render: (r) => r.customerSearchTerm ?? "—",
-    sortValue: (r) => r.customerSearchTerm,
-  },
-  { key: "spend", header: "Spend", align: "right", render: (r) => formatCurrency(r.spend), sortValue: (r) => r.spend },
-  { key: "orders", header: "Orders", align: "right", render: (r) => formatNumber(r.orders), sortValue: (r) => r.orders },
-  { key: "clicks", header: "Clicks", align: "right", render: (r) => formatNumber(r.clicks), sortValue: (r) => r.clicks },
-  { key: "acos", header: "ACOS", align: "right", render: (r) => formatPercent(r.acos), sortValue: (r) => r.acos },
-  { key: "roas", header: "ROAS", align: "right", render: (r) => formatDecimal(r.roas), sortValue: (r) => r.roas },
-];
+function buildTermColumns(marketplace: string | null): Column<BrandedSearchTermRow>[] {
+  return [
+    searchTermColumn({ key: "term", header: "Search Term", getTerm: (r) => r.customerSearchTerm, marketplace }),
+    { key: "spend", header: "Spend", align: "right", render: (r) => formatCurrency(r.spend), sortValue: (r) => r.spend },
+    { key: "orders", header: "Orders", align: "right", render: (r) => formatNumber(r.orders), sortValue: (r) => r.orders },
+    { key: "clicks", header: "Clicks", align: "right", render: (r) => formatNumber(r.clicks), sortValue: (r) => r.clicks },
+    { key: "acos", header: "ACOS", align: "right", render: (r) => formatPercent(r.acos), sortValue: (r) => r.acos },
+    { key: "roas", header: "ROAS", align: "right", render: (r) => formatDecimal(r.roas), sortValue: (r) => r.roas },
+  ];
+}
 
 interface BrandedSplitTrio {
   branded: BrandedSplitRow;
@@ -47,12 +45,15 @@ export function BrandedVsNonBrandedSection({
   auditId,
   initialData,
   sectionKey,
+  marketplace,
 }: {
   auditId: string;
   initialData: BrandedSplitTrio;
   sectionKey?: string;
+  marketplace: string | null;
 }) {
   const [scope, setScope] = useState<BrandedScope>("both");
+  const termColumns = useMemo(() => buildTermColumns(marketplace), [marketplace]);
   const [fetchedData, setFetchedData] = useState<BrandedSplitTrio | null>(null);
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);

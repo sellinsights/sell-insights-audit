@@ -7,6 +7,9 @@ const TABS: { key: TabKey; label: string }[] = [
   { key: "ad-analysis", label: "Ad Analysis" },
   { key: "wasted-spend", label: "Wasted Spend" },
   { key: "bleeders", label: "Bleeders" },
+  { key: "acos-improvement", label: "ACOS Improvement" },
+  { key: "scale-opportunities", label: "Scale Opportunities" },
+  { key: "cost-reduction", label: "Cost Reduction" },
   { key: "sqp", label: "SQP" },
 ];
 

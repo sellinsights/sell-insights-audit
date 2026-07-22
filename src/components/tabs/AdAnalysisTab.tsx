@@ -4,6 +4,7 @@ import { SectionCard } from "@/components/SectionCard";
 import { DataTable } from "@/components/DataTable";
 import { metricsColumns } from "@/components/metricsTableColumns";
 import { BrandedVsNonBrandedSection } from "@/components/BrandedVsNonBrandedSection";
+import { buildPlacementSubsections } from "@/lib/placementBreakdown";
 import type { AuditData } from "@/lib/data/audit";
 
 // recharts is a large, browser-only (ResizeObserver/SVG-measuring) library —
@@ -30,6 +31,8 @@ export const AdAnalysisTab = memo(function AdAnalysisTab({ data, auditId }: { da
       : "Auto spend over 10% — consider shifting validated auto search terms to manual campaigns";
 
   const columns = metricsColumns("Ad Type");
+  const placementColumns = metricsColumns("Placement");
+  const placementSubsections = useMemo(() => buildPlacementSubsections(placements?.rows ?? []), [placements]);
 
   return (
     <div className="space-y-8">
@@ -55,7 +58,12 @@ export const AdAnalysisTab = memo(function AdAnalysisTab({ data, auditId }: { da
         />
       </SectionCard>
 
-      <BrandedVsNonBrandedSection auditId={auditId} initialData={brandedSplit} sectionKey="ad_analysis_branded" />
+      <BrandedVsNonBrandedSection
+        auditId={auditId}
+        initialData={brandedSplit}
+        sectionKey="ad_analysis_branded"
+        marketplace={data.audit.marketplace}
+      />
 
       <SectionCard
         title="SP Match Type Analysis"
@@ -106,12 +114,35 @@ export const AdAnalysisTab = memo(function AdAnalysisTab({ data, auditId }: { da
         description="Entity = Bidding Adjustment, grouped by placement."
         sectionKey="ad_analysis_placements"
       >
-        <DataTable
-          columns={metricsColumns("Placement")}
-          rows={placements?.rows ?? []}
-          footer={placements?.grandTotal}
-          keyFn={(r) => r.label}
-        />
+        <div className="space-y-6">
+          <div>
+            <h4 className="mb-2 text-sm font-semibold text-navy">Placement Analysis</h4>
+            <DataTable
+              columns={placementColumns}
+              rows={placementSubsections.core.rows}
+              footer={placementSubsections.core.grandTotal}
+              keyFn={(r) => r.label}
+            />
+          </div>
+          <div>
+            <h4 className="mb-2 text-sm font-semibold text-navy">Business Placement Analysis</h4>
+            <DataTable
+              columns={placementColumns}
+              rows={placementSubsections.business.rows}
+              footer={placementSubsections.business.grandTotal}
+              keyFn={(r) => r.label}
+            />
+          </div>
+          <div>
+            <h4 className="mb-2 text-sm font-semibold text-navy">Audience Placement Analysis</h4>
+            <DataTable
+              columns={placementColumns}
+              rows={placementSubsections.audience.rows}
+              footer={placementSubsections.audience.grandTotal}
+              keyFn={(r) => r.label}
+            />
+          </div>
+        </div>
       </SectionCard>
 
       <SectionCard

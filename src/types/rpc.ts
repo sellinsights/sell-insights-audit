@@ -90,3 +90,21 @@ export interface BleederRpcRow {
   avg_cpc: number | null;
   highest_cpc: number | null;
 }
+
+/** Shared shape for fn_acos_improvement / fn_scale_opportunities /
+ * fn_cost_reduction — individual search-term rows plus a denormalized
+ * `total_count` (via `count(*) over()`) on every row, so the client knows
+ * how many results exist for the current filter without a second query. */
+export interface OpportunityRpcRow {
+  customer_search_term: string;
+  impressions: number;
+  clicks: number;
+  orders: number;
+  spend: number;
+  sales: number;
+  cpc: number | null;
+  acos: number | null;
+  roas: number | null;
+  cvr: number | null;
+  total_count: number;
+}

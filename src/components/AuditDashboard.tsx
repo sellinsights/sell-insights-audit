@@ -6,15 +6,27 @@ import { SummaryTab } from "./tabs/SummaryTab";
 import { AdAnalysisTab } from "./tabs/AdAnalysisTab";
 import { WastedSpendTab } from "./tabs/WastedSpendTab";
 import { BleedersTab } from "./tabs/BleedersTab";
+import { AcosImprovementTab } from "./tabs/AcosImprovementTab";
+import { ScaleOpportunitiesTab } from "./tabs/ScaleOpportunitiesTab";
+import { CostReductionTab } from "./tabs/CostReductionTab";
 import { SqpTab } from "./tabs/SqpTab";
 import type { AuditData } from "@/lib/data/audit";
 
-export type TabKey = "summary" | "ad-analysis" | "wasted-spend" | "bleeders" | "sqp";
+export type TabKey =
+  | "summary"
+  | "ad-analysis"
+  | "wasted-spend"
+  | "bleeders"
+  | "acos-improvement"
+  | "scale-opportunities"
+  | "cost-reduction"
+  | "sqp";
 
 /** Fetched once by the server; kept in state so tab switches never re-fetch or re-hit the DB. */
 export function AuditDashboard({ data }: { data: AuditData }) {
   const [auditData] = useState(data);
   const [activeTab, setActiveTab] = useState<TabKey>("summary");
+  const marketplace = auditData.audit.marketplace;
 
   return (
     <div>
@@ -33,7 +45,16 @@ export function AuditDashboard({ data }: { data: AuditData }) {
         <WastedSpendTab data={auditData} />
       </div>
       <div className={activeTab === "bleeders" ? "" : "hidden"}>
-        <BleedersTab auditId={auditData.audit.id} />
+        <BleedersTab auditId={auditData.audit.id} marketplace={marketplace} />
+      </div>
+      <div className={activeTab === "acos-improvement" ? "" : "hidden"}>
+        <AcosImprovementTab auditId={auditData.audit.id} marketplace={marketplace} />
+      </div>
+      <div className={activeTab === "scale-opportunities" ? "" : "hidden"}>
+        <ScaleOpportunitiesTab auditId={auditData.audit.id} marketplace={marketplace} />
+      </div>
+      <div className={activeTab === "cost-reduction" ? "" : "hidden"}>
+        <CostReductionTab auditId={auditData.audit.id} marketplace={marketplace} />
       </div>
       <div className={activeTab === "sqp" ? "" : "hidden"}>
         <SqpTab />

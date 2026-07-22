@@ -21,6 +21,7 @@ import { writeCache, clearCache } from "@/lib/cache/localCache";
 import { cacheKeys } from "@/lib/cache/cacheKeys";
 import { UploadZone } from "@/components/UploadZone";
 import { ProgressSteps, type ProgressStepState } from "@/components/ProgressSteps";
+import { MARKETPLACES } from "@/lib/marketplace";
 import type { AuditFileType } from "@/types/database";
 
 const UPLOAD_LABELS: Record<AuditFileType, string> = {
@@ -36,6 +37,7 @@ export default function NewAuditPage() {
   const router = useRouter();
 
   const [title, setTitle] = useState("");
+  const [marketplace, setMarketplace] = useState("US");
   const [businessReport, setBusinessReport] = useState<File | null>(null);
   const [bulkAds, setBulkAds] = useState<File | null>(null);
   const [sqp, setSqp] = useState<File | null>(null);
@@ -98,7 +100,7 @@ export default function NewAuditPage() {
 
       const { data: audit, error: auditError } = await supabase
         .from("audits")
-        .insert({ brand_id: brandId, title: title.trim(), status: "processing", created_by: user.id })
+        .insert({ brand_id: brandId, title: title.trim(), status: "processing", marketplace, created_by: user.id })
         .select()
         .single();
       if (auditError || !audit) throw new Error(auditError?.message ?? "Could not create audit.");
@@ -236,17 +238,36 @@ export default function NewAuditPage() {
 
       <h1 className="mb-6 text-xl font-bold text-navy">New Audit</h1>
 
-      <div className="mb-6 rounded-xl border border-black/5 bg-white p-5 shadow-sm">
-        <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-navy-light">
-          Audit title
-        </label>
-        <input
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          disabled={running}
-          placeholder="e.g. Q3 2026 PPC Audit"
-          className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm outline-none focus:border-green focus:ring-1 focus:ring-green disabled:opacity-60"
-        />
+      <div className="mb-6 grid grid-cols-1 gap-4 rounded-xl border border-black/5 bg-white p-5 shadow-sm sm:grid-cols-3">
+        <div className="sm:col-span-2">
+          <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-navy-light">
+            Audit title
+          </label>
+          <input
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            disabled={running}
+            placeholder="e.g. Q3 2026 PPC Audit"
+            className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm outline-none focus:border-green focus:ring-1 focus:ring-green disabled:opacity-60"
+          />
+        </div>
+        <div>
+          <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-navy-light">
+            Marketplace
+          </label>
+          <select
+            value={marketplace}
+            onChange={(e) => setMarketplace(e.target.value)}
+            disabled={running}
+            className="w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm outline-none focus:border-green focus:ring-1 focus:ring-green disabled:opacity-60"
+          >
+            {MARKETPLACES.map((m) => (
+              <option key={m.code} value={m.code}>
+                {m.code} ({m.domain})
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
 
       <div className="space-y-4">

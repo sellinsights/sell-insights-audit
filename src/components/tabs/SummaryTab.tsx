@@ -1,18 +1,15 @@
-import { memo } from "react";
+import { memo, useMemo } from "react";
 import { KpiCard } from "@/components/KpiCard";
 import { SectionCard } from "@/components/SectionCard";
 import { DataTable, type Column } from "@/components/DataTable";
+import { asinColumn } from "@/components/amazonLinkColumns";
 import { formatCurrency, formatNumber, formatPercent, formatDecimal } from "@/lib/format";
 import type { AdvertisedAsinRow, TopAsinRow } from "@/lib/data/rpc";
 import type { AuditData } from "@/lib/data/audit";
 
-const topAsinColumns: Column<TopAsinRow>[] = [
-  {
-    key: "asin",
-    header: "ASIN",
-    render: (r) => <span className="font-medium text-navy">{r.asin}</span>,
-    sortValue: (r) => r.asin,
-  },
+function buildTopAsinColumns(marketplace: string | null): Column<TopAsinRow>[] {
+  return [
+  asinColumn({ getAsin: (r) => r.asin, marketplace }),
   {
     key: "units",
     header: "Units Ordered",
@@ -65,15 +62,12 @@ const topAsinColumns: Column<TopAsinRow>[] = [
     render: (r) => formatPercent(r.pctOfUnitSales),
     sortValue: (r) => r.pctOfUnitSales,
   },
-];
+  ];
+}
 
-const advertisedColumns: Column<AdvertisedAsinRow>[] = [
-  {
-    key: "asin",
-    header: "ASIN",
-    render: (r) => <span className="font-medium text-navy">{r.asin}</span>,
-    sortValue: (r) => r.asin,
-  },
+function buildAdvertisedColumns(marketplace: string | null): Column<AdvertisedAsinRow>[] {
+  return [
+  asinColumn({ getAsin: (r) => r.asin, marketplace }),
   {
     key: "impressions",
     header: "Impressions",
@@ -103,10 +97,14 @@ const advertisedColumns: Column<AdvertisedAsinRow>[] = [
     render: (r) => formatPercent(r.pctOfSales),
     sortValue: (r) => r.pctOfSales,
   },
-];
+  ];
+}
 
 export const SummaryTab = memo(function SummaryTab({ data }: { data: AuditData }) {
   const { kpis, topAsins, advertisedAsins } = data;
+  const marketplace = data.audit.marketplace;
+  const topAsinColumns = useMemo(() => buildTopAsinColumns(marketplace), [marketplace]);
+  const advertisedColumns = useMemo(() => buildAdvertisedColumns(marketplace), [marketplace]);
 
   return (
     <div className="space-y-8">

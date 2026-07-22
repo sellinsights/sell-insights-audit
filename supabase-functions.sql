@@ -855,6 +855,171 @@ $$;
 
 
 -- ============================================================================
+-- 11-13. fn_acos_improvement / fn_scale_opportunities / fn_cost_reduction —
+--        ACOS Improvement / Scale Opportunities / Cost Reduction tabs.
+--
+-- All three share one shape: individual SP/SB Search Term Report rows with
+-- orders >= 1, split into three non-overlapping ACOS bands. ACOS is
+-- recomputed as spend/sales*100 (not the report's own `acos` column) to stay
+-- consistent with fn_derive_metrics' formula used everywhere else in this
+-- file, rather than trusting a raw field that may be blank or differently
+-- rounded. p_ad_type/p_term_type accept 'both' as well as the single-value
+-- filters ('sp'/'sb' and 'keyword'/'asin' respectively).
+--
+-- total_count is denormalized onto every returned row via `count(*) over()`
+-- so the client knows how many rows exist for the current filter combination
+-- without a second query — cheap since these functions already return at
+-- most p_limit rows.
+-- ============================================================================
+create or replace function public.fn_acos_improvement(
+  p_audit_id uuid,
+  p_ad_type text default 'both',
+  p_term_type text default 'both',
+  p_limit int default 100,
+  p_offset int default 0
+)
+returns table (
+  customer_search_term text, impressions bigint, clicks bigint, orders bigint,
+  spend numeric, sales numeric, cpc numeric, acos numeric, roas numeric, cvr numeric,
+  total_count bigint
+)
+language sql
+stable
+as $$
+  with base as (
+    select customer_search_term, impressions, clicks, orders, spend, sales, search_term_type,
+           case when coalesce(sales, 0) > 0 then (coalesce(spend, 0) / sales) * 100 else null end as calc_acos
+    from public.sp_search_term_data
+    where audit_id = p_audit_id and (lower(p_ad_type) = 'both' or lower(p_ad_type) = 'sp')
+    union all
+    select customer_search_term, impressions, clicks, orders, spend, sales, search_term_type,
+           case when coalesce(sales, 0) > 0 then (coalesce(spend, 0) / sales) * 100 else null end as calc_acos
+    from public.sb_search_term_data
+    where audit_id = p_audit_id and (lower(p_ad_type) = 'both' or lower(p_ad_type) = 'sb')
+  ),
+  filtered as (
+    select * from base
+    where coalesce(orders, 0) >= 1
+      and calc_acos is not null and calc_acos >= 50 and calc_acos <= 100
+      and (lower(p_term_type) = 'both' or search_term_type = lower(p_term_type))
+  )
+  select
+    coalesce(customer_search_term, '—'),
+    coalesce(impressions, 0)::bigint,
+    coalesce(clicks, 0)::bigint,
+    coalesce(orders, 0)::bigint,
+    coalesce(spend, 0)::numeric,
+    coalesce(sales, 0)::numeric,
+    case when coalesce(clicks, 0) > 0 then spend / clicks else null end,
+    calc_acos,
+    case when coalesce(spend, 0) > 0 then sales / spend else null end,
+    case when coalesce(clicks, 0) > 0 then (orders::numeric / clicks) * 100 else null end,
+    count(*) over ()::bigint
+  from filtered
+  order by coalesce(spend, 0) desc
+  limit p_limit offset p_offset;
+$$;
+
+create or replace function public.fn_scale_opportunities(
+  p_audit_id uuid,
+  p_ad_type text default 'both',
+  p_term_type text default 'both',
+  p_limit int default 100,
+  p_offset int default 0
+)
+returns table (
+  customer_search_term text, impressions bigint, clicks bigint, orders bigint,
+  spend numeric, sales numeric, cpc numeric, acos numeric, roas numeric, cvr numeric,
+  total_count bigint
+)
+language sql
+stable
+as $$
+  with base as (
+    select customer_search_term, impressions, clicks, orders, spend, sales, search_term_type,
+           case when coalesce(sales, 0) > 0 then (coalesce(spend, 0) / sales) * 100 else null end as calc_acos
+    from public.sp_search_term_data
+    where audit_id = p_audit_id and (lower(p_ad_type) = 'both' or lower(p_ad_type) = 'sp')
+    union all
+    select customer_search_term, impressions, clicks, orders, spend, sales, search_term_type,
+           case when coalesce(sales, 0) > 0 then (coalesce(spend, 0) / sales) * 100 else null end as calc_acos
+    from public.sb_search_term_data
+    where audit_id = p_audit_id and (lower(p_ad_type) = 'both' or lower(p_ad_type) = 'sb')
+  ),
+  filtered as (
+    select * from base
+    where coalesce(orders, 0) >= 1
+      and calc_acos is not null and calc_acos < 50
+      and (lower(p_term_type) = 'both' or search_term_type = lower(p_term_type))
+  )
+  select
+    coalesce(customer_search_term, '—'),
+    coalesce(impressions, 0)::bigint,
+    coalesce(clicks, 0)::bigint,
+    coalesce(orders, 0)::bigint,
+    coalesce(spend, 0)::numeric,
+    coalesce(sales, 0)::numeric,
+    case when coalesce(clicks, 0) > 0 then spend / clicks else null end,
+    calc_acos,
+    case when coalesce(spend, 0) > 0 then sales / spend else null end,
+    case when coalesce(clicks, 0) > 0 then (orders::numeric / clicks) * 100 else null end,
+    count(*) over ()::bigint
+  from filtered
+  order by coalesce(spend, 0) desc
+  limit p_limit offset p_offset;
+$$;
+
+create or replace function public.fn_cost_reduction(
+  p_audit_id uuid,
+  p_ad_type text default 'both',
+  p_term_type text default 'both',
+  p_limit int default 100,
+  p_offset int default 0
+)
+returns table (
+  customer_search_term text, impressions bigint, clicks bigint, orders bigint,
+  spend numeric, sales numeric, cpc numeric, acos numeric, roas numeric, cvr numeric,
+  total_count bigint
+)
+language sql
+stable
+as $$
+  with base as (
+    select customer_search_term, impressions, clicks, orders, spend, sales, search_term_type,
+           case when coalesce(sales, 0) > 0 then (coalesce(spend, 0) / sales) * 100 else null end as calc_acos
+    from public.sp_search_term_data
+    where audit_id = p_audit_id and (lower(p_ad_type) = 'both' or lower(p_ad_type) = 'sp')
+    union all
+    select customer_search_term, impressions, clicks, orders, spend, sales, search_term_type,
+           case when coalesce(sales, 0) > 0 then (coalesce(spend, 0) / sales) * 100 else null end as calc_acos
+    from public.sb_search_term_data
+    where audit_id = p_audit_id and (lower(p_ad_type) = 'both' or lower(p_ad_type) = 'sb')
+  ),
+  filtered as (
+    select * from base
+    where coalesce(orders, 0) >= 1
+      and calc_acos is not null and calc_acos > 100
+      and (lower(p_term_type) = 'both' or search_term_type = lower(p_term_type))
+  )
+  select
+    coalesce(customer_search_term, '—'),
+    coalesce(impressions, 0)::bigint,
+    coalesce(clicks, 0)::bigint,
+    coalesce(orders, 0)::bigint,
+    coalesce(spend, 0)::numeric,
+    coalesce(sales, 0)::numeric,
+    case when coalesce(clicks, 0) > 0 then spend / clicks else null end,
+    calc_acos,
+    case when coalesce(spend, 0) > 0 then sales / spend else null end,
+    case when coalesce(clicks, 0) > 0 then (orders::numeric / clicks) * 100 else null end,
+    count(*) over ()::bigint
+  from filtered
+  order by coalesce(spend, 0) desc
+  limit p_limit offset p_offset;
+$$;
+
+
+-- ============================================================================
 -- Grants — Supabase's PostgREST API calls these as the `authenticated` role.
 -- (CREATE FUNCTION grants EXECUTE to PUBLIC by default, but this makes it
 -- explicit and safe to re-run.)
@@ -873,3 +1038,6 @@ grant execute on function public.fn_branded_split(uuid, text) to authenticated;
 grant execute on function public.fn_branded_search_terms(uuid, text, boolean, int, int) to authenticated;
 grant execute on function public.fn_wasted_spend(uuid, text, int, int) to authenticated;
 grant execute on function public.fn_bleeders(uuid, text, numeric, numeric, text, int, int) to authenticated;
+grant execute on function public.fn_acos_improvement(uuid, text, text, int, int) to authenticated;
+grant execute on function public.fn_scale_opportunities(uuid, text, text, int, int) to authenticated;
+grant execute on function public.fn_cost_reduction(uuid, text, text, int, int) to authenticated;

@@ -30,9 +30,15 @@ create table if not exists public.audits (
   brand_id uuid not null references public.brands (id) on delete cascade,
   title text not null,
   status text not null default 'draft' check (status in ('draft', 'processing', 'complete')),
+  marketplace text not null default 'US',
   created_by uuid not null references auth.users (id) on delete cascade,
   created_at timestamptz not null default now()
 );
+
+-- Re-runnable against a database that already has this table from before
+-- marketplace existed — CREATE TABLE IF NOT EXISTS above is a no-op there.
+-- The DEFAULT backfills every pre-existing row to 'US' automatically.
+alter table public.audits add column if not exists marketplace text not null default 'US';
 
 create index if not exists audits_brand_id_idx on public.audits (brand_id);
 create index if not exists audits_created_by_idx on public.audits (created_by);
