@@ -21,6 +21,8 @@ export interface TopAsinRpcRow {
   sessions: number;
   page_views_per_session: number | null;
   sp_spend: number;
+  sp_clicks: number;
+  sp_orders: number;
   sp_tacos: number | null;
   pct_of_sp_spend: number;
   pct_of_unit_sales: number;

@@ -11,7 +11,7 @@ export function metricsColumns(labelHeader: string): Column<LabeledMetricsRow>[]
       key: "label",
       header: labelHeader,
       render: (r) => (
-        <span className={r.label === "Grand Total" ? "font-semibold text-navy" : "font-medium text-navy"}>
+        <span className={r.label === "Grand Total" ? "font-semibold text-white" : "font-medium text-navy"}>
           {r.label}
         </span>
       ),

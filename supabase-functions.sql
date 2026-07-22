@@ -163,6 +163,11 @@ $$;
 -- NOT the business report's session-based unit_session_percentage. Returned
 -- already multiplied by 100 (e.g. 12.5, meaning "12.5%") — the UI just
 -- appends "%", it does not divide.
+--
+-- sp_clicks/sp_orders (the raw counts behind sba.cvr) are also returned so
+-- the Summary tab's Top ASINs table can compute a correct ratio-of-sums
+-- Grand Total CVR% client-side (total SP orders ÷ total SP clicks), not an
+-- average of each row's already-divided cvr.
 create or replace function public.fn_top_asins(p_audit_id uuid, p_limit int default 10)
 returns table (
   asin text,
@@ -174,6 +179,8 @@ returns table (
   sessions bigint,
   page_views_per_session numeric,
   sp_spend numeric,
+  sp_clicks bigint,
+  sp_orders bigint,
   sp_tacos numeric,
   pct_of_sp_spend numeric,
   pct_of_unit_sales numeric
@@ -209,6 +216,8 @@ as $$
       then coalesce(br.page_views_total, 0)::numeric / br.sessions_total
       else null end,
     coalesce(sba.spend, 0)::numeric,
+    coalesce(sba.clicks, 0)::bigint,
+    coalesce(sba.orders, 0)::bigint,
     case when coalesce(br.ordered_product_sales, 0) > 0
       then (coalesce(sba.spend, 0) / br.ordered_product_sales) * 100
       else null end,

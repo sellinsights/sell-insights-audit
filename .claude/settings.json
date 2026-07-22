@@ -43,7 +43,8 @@
       "Bash(curl -sf http://localhost:3000/login -o /dev/null)",
       "Bash(kill 12771)",
       "Bash(kill 15892)",
-      "Bash(kill 16458)"
+      "Bash(kill 16458)",
+      "Bash(kill 17015)"
     ]
   }
 }

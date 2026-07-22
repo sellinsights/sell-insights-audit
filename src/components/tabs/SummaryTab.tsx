@@ -66,6 +66,87 @@ function buildTopAsinColumns(marketplace: string | null): Column<TopAsinRow>[] {
   ];
 }
 
+/** Client-side Grand Total for Top ASINs — fn_top_asins returns individual
+ * ASIN rows only. AOV/CVR%/TACOS% are recomputed as ratios of the summed
+ * totals (not an average of each row's already-divided value) — CVR% in
+ * particular needs the raw spClicks/spOrders fn_top_asins added for exactly
+ * this, since averaging each row's cvr would misweight low-click ASINs. % of
+ * SP Spend and % of Unit Sales are already per-row percentages of the same
+ * grand total, so they just sum (to ~100%). */
+function computeTopAsinGrandTotal(rows: TopAsinRow[]): TopAsinRow | undefined {
+  if (rows.length === 0) return undefined;
+  let unitsOrdered = 0;
+  let revenue = 0;
+  let sessions = 0;
+  let spSpend = 0;
+  let spClicks = 0;
+  let spOrders = 0;
+  let pctOfSpSpend = 0;
+  let pctOfUnitSales = 0;
+  for (const r of rows) {
+    unitsOrdered += r.unitsOrdered;
+    revenue += r.revenue;
+    sessions += r.sessions;
+    spSpend += r.spSpend;
+    spClicks += r.spClicks;
+    spOrders += r.spOrders;
+    pctOfSpSpend += r.pctOfSpSpend;
+    pctOfUnitSales += r.pctOfUnitSales;
+  }
+  return {
+    asin: "Grand Total",
+    title: null,
+    unitsOrdered,
+    revenue,
+    aov: unitsOrdered > 0 ? revenue / unitsOrdered : null,
+    cvr: spClicks > 0 ? (spOrders / spClicks) * 100 : null,
+    sessions,
+    pageViewsPerSession: null,
+    spSpend,
+    spClicks,
+    spOrders,
+    spTacos: revenue > 0 ? (spSpend / revenue) * 100 : null,
+    pctOfSpSpend,
+    pctOfUnitSales,
+  };
+}
+
+/** Client-side Grand Total for Advertised ASIN Performance — same
+ * ratio-of-sums approach as every other metrics Grand Total in this app. */
+function computeAdvertisedGrandTotal(rows: AdvertisedAsinRow[]): AdvertisedAsinRow | undefined {
+  if (rows.length === 0) return undefined;
+  let impressions = 0;
+  let clicks = 0;
+  let orders = 0;
+  let spend = 0;
+  let sales = 0;
+  let pctOfSpend = 0;
+  let pctOfSales = 0;
+  for (const r of rows) {
+    impressions += r.impressions;
+    clicks += r.clicks;
+    orders += r.orders;
+    spend += r.spend;
+    sales += r.sales;
+    pctOfSpend += r.pctOfSpend;
+    pctOfSales += r.pctOfSales;
+  }
+  return {
+    asin: "Grand Total",
+    impressions,
+    clicks,
+    orders,
+    spend,
+    sales,
+    cpc: clicks > 0 ? spend / clicks : null,
+    acos: sales > 0 ? (spend / sales) * 100 : null,
+    roas: spend > 0 ? sales / spend : null,
+    cvr: clicks > 0 ? (orders / clicks) * 100 : null,
+    pctOfSpend,
+    pctOfSales,
+  };
+}
+
 function buildAdvertisedColumns(marketplace: string | null): Column<AdvertisedAsinRow>[] {
   return [
   asinColumn({ getAsin: (r) => r.asin, marketplace }),
@@ -106,6 +187,8 @@ export const SummaryTab = memo(function SummaryTab({ data }: { data: AuditData }
   const marketplace = data.audit.marketplace;
   const topAsinColumns = useMemo(() => buildTopAsinColumns(marketplace), [marketplace]);
   const advertisedColumns = useMemo(() => buildAdvertisedColumns(marketplace), [marketplace]);
+  const topAsinGrandTotal = useMemo(() => computeTopAsinGrandTotal(topAsins), [topAsins]);
+  const advertisedGrandTotal = useMemo(() => computeAdvertisedGrandTotal(advertisedAsins), [advertisedAsins]);
 
   return (
     <div className="space-y-8">
@@ -125,7 +208,13 @@ export const SummaryTab = memo(function SummaryTab({ data }: { data: AuditData }
         count={formatCount(topAsins.length, "ASIN")}
         sectionKey="summary_top_asins"
       >
-        <DataTable columns={topAsinColumns} rows={topAsins} keyFn={(r) => r.asin} maxHeightPx={520} />
+        <DataTable
+          columns={topAsinColumns}
+          rows={topAsins}
+          footer={topAsinGrandTotal}
+          keyFn={(r) => r.asin}
+          maxHeightPx={520}
+        />
       </SectionCard>
 
       <SectionCard
@@ -134,7 +223,13 @@ export const SummaryTab = memo(function SummaryTab({ data }: { data: AuditData }
         count={formatCount(advertisedAsins.length, "ASIN")}
         sectionKey="summary_advertised_asin"
       >
-        <DataTable columns={advertisedColumns} rows={advertisedAsins} keyFn={(r) => r.asin} maxHeightPx={520} />
+        <DataTable
+          columns={advertisedColumns}
+          rows={advertisedAsins}
+          footer={advertisedGrandTotal}
+          keyFn={(r) => r.asin}
+          maxHeightPx={520}
+        />
       </SectionCard>
     </div>
   );

@@ -31,6 +31,10 @@ export function asinColumn<T>({
     header,
     render: (row) => {
       const asin = getAsin(row);
+      // Synthetic Grand Total rows aren't a real ASIN — render plain bold
+      // (white, to read against the footer's solid green) text instead of a
+      // (meaningless) Amazon product link.
+      if (asin === "Grand Total") return <span className="font-semibold text-white">Grand Total</span>;
       return (
         <AmazonLink href={amazonAsinUrl(asin, marketplace)}>
           <span className="font-medium">{asin}</span>
@@ -63,7 +67,7 @@ export function searchTermColumn<T>({
       if (!term) return "—";
       // Synthetic Grand Total rows aren't a real search term — render plain
       // bold text instead of a (meaningless) Amazon search link.
-      if (term === "Grand Total") return <span className="font-semibold text-navy">Grand Total</span>;
+      if (term === "Grand Total") return <span className="font-semibold text-white">Grand Total</span>;
       return <AmazonLink href={amazonSearchTermUrl(term, marketplace)}>{term}</AmazonLink>;
     },
     sortValue: (row) => getTerm(row),

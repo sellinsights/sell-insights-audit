@@ -10,7 +10,7 @@ const columns: Column<WastedSpendRow>[] = [
   {
     key: "matchType",
     header: "Match Type",
-    render: (r) => <span className={r.matchType === "Grand Total" ? "font-semibold text-navy" : "font-medium text-navy"}>{r.matchType}</span>,
+    render: (r) => <span className={r.matchType === "Grand Total" ? "font-semibold text-white" : "font-medium text-navy"}>{r.matchType}</span>,
     sortValue: (r) => r.matchType,
   },
   { key: "spend", header: "Spend", align: "right", render: (r) => formatCurrency(r.spend), sortValue: (r) => r.spend },

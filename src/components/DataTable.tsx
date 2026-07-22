@@ -89,11 +89,14 @@ export function DataTable<T>({
           </tbody>
           {footer && (
             <tfoot className="sticky bottom-0 z-10">
-              <tr className="border-t border-[rgba(0,179,65,0.25)] bg-[rgba(0,179,65,0.06)] font-semibold text-navy">
+              {/* Solid brand green, not a translucent tint — this row sits
+                  over scrolling content via `sticky`, so it needs to be fully
+                  opaque or rows scrolling underneath show through it. */}
+              <tr className="border-t border-green-dark bg-green font-semibold text-white">
                 {columns.map((col) => (
                   <td
                     key={col.key}
-                    className={`whitespace-nowrap bg-[rgba(0,179,65,0.06)] px-4 py-3 tabular-nums ${alignClass[col.align ?? "left"]}`}
+                    className={`whitespace-nowrap bg-green px-4 py-3 tabular-nums ${alignClass[col.align ?? "left"]}`}
                   >
                     {col.render(footer)}
                   </td>

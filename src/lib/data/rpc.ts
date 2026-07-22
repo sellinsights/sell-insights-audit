@@ -24,6 +24,10 @@ export interface TopAsinRow {
   sessions: number;
   pageViewsPerSession: number | null;
   spSpend: number;
+  /** Raw counts behind `cvr` — not shown as their own columns, only used to
+   * compute a correct ratio-of-sums Grand Total CVR% client-side. */
+  spClicks: number;
+  spOrders: number;
   spTacos: number | null;
   pctOfSpSpend: number;
   pctOfUnitSales: number;
@@ -190,6 +194,8 @@ export async function fetchTopAsins(supabase: SupabaseClient<Database>, auditId:
       sessions: r.sessions,
       pageViewsPerSession: r.page_views_per_session,
       spSpend: r.sp_spend,
+      spClicks: r.sp_clicks,
+      spOrders: r.sp_orders,
       spTacos: r.sp_tacos,
       pctOfSpSpend: r.pct_of_sp_spend,
       pctOfUnitSales: r.pct_of_unit_sales,
