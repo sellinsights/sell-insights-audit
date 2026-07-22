@@ -39,7 +39,7 @@ export function DataTable<T>({
   });
 
   return (
-    <div className="overflow-hidden rounded-lg border border-black/5 bg-white shadow-sm">
+    <div className="overflow-hidden rounded-lg border border-[rgba(0,179,65,0.2)] bg-white shadow-sm">
       <div className="overflow-x-auto" style={maxHeightPx ? { maxHeight: maxHeightPx, overflowY: "auto" } : undefined}>
         <table className="w-full min-w-max border-collapse text-sm">
           <thead className="sticky top-0 z-10">
@@ -74,7 +74,7 @@ export function DataTable<T>({
               </tr>
             ) : (
               sortedRows.map((row, i) => (
-                <tr key={keyFn ? keyFn(row, i) : i} className="border-t border-black/5 even:bg-neutral-50 hover:bg-green-light/40">
+                <tr key={keyFn ? keyFn(row, i) : i} className="border-t border-black/5 even:bg-neutral-50 hover:bg-[rgba(0,179,65,0.04)]">
                   {columns.map((col) => (
                     <td
                       key={col.key}
@@ -89,7 +89,7 @@ export function DataTable<T>({
           </tbody>
           {footer && (
             <tfoot>
-              <tr className="border-t-2 border-navy bg-navy/5 font-semibold text-navy">
+              <tr className="border-t-2 border-navy bg-[rgba(0,179,65,0.06)] font-semibold text-navy">
                 {columns.map((col) => (
                   <td
                     key={col.key}

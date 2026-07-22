@@ -131,7 +131,7 @@ export function BleedersBoard({ auditId, marketplace }: { auditId: string; marke
               onClick={() => setFilter(f.value)}
               disabled={loading}
               className={`px-3 py-1.5 transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${
-                filter === f.value ? "bg-navy text-white" : "bg-white text-navy hover:bg-neutral-100"
+                filter === f.value ? "bg-green text-white" : "bg-white text-navy hover:bg-neutral-100"
               }`}
             >
               {f.label}

@@ -141,7 +141,7 @@ export function OpportunityTable({
                 onClick={() => setTermType(o.value)}
                 disabled={loading}
                 className={`px-3 py-1.5 transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${
-                  termType === o.value ? "bg-navy text-white" : "bg-white text-navy hover:bg-neutral-100"
+                  termType === o.value ? "bg-green text-white" : "bg-white text-navy hover:bg-neutral-100"
                 }`}
               >
                 {o.label}
@@ -155,7 +155,7 @@ export function OpportunityTable({
                 onClick={() => setAdType(o.value)}
                 disabled={loading}
                 className={`px-3 py-1.5 transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${
-                  adType === o.value ? "bg-navy text-white" : "bg-white text-navy hover:bg-neutral-100"
+                  adType === o.value ? "bg-green text-white" : "bg-white text-navy hover:bg-neutral-100"
                 }`}
               >
                 {o.label}

@@ -21,9 +21,9 @@ export function AuditTabs({ active, onChange }: { active: TabKey; onChange: (tab
           key={tab.key}
           type="button"
           onClick={() => onChange(tab.key)}
-          className={`border-b-2 px-4 py-3 text-sm font-semibold transition-colors ${
+          className={`rounded-t-md border-b-2 px-4 py-3 text-sm font-semibold transition-colors ${
             active === tab.key
-              ? "border-green text-navy"
+              ? "border-green bg-[rgba(0,179,65,0.05)] text-navy"
               : "border-transparent text-neutral-500 hover:text-navy"
           }`}
         >

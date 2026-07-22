@@ -146,7 +146,7 @@ export function BrandedVsNonBrandedSection({
               }}
               disabled={loading}
               className={`px-3 py-1.5 transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${
-                scope === s.value ? "bg-navy text-white" : "bg-white text-navy hover:bg-neutral-100"
+                scope === s.value ? "bg-green text-white" : "bg-white text-navy hover:bg-neutral-100"
               }`}
             >
               {s.label}

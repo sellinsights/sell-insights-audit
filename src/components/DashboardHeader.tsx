@@ -19,8 +19,8 @@ export function DashboardHeader({ userEmail }: { userEmail: string | null }) {
 
   return (
     <header
-      className={`sticky top-0 z-50 w-full border-b bg-white transition-shadow duration-200 ${
-        scrolled ? "border-black/10 shadow-md" : "border-transparent"
+      className={`sticky top-0 z-50 w-full border-b border-[rgba(0,179,65,0.15)] bg-white transition-shadow duration-200 ${
+        scrolled ? "shadow-md" : ""
       }`}
     >
       <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-3">

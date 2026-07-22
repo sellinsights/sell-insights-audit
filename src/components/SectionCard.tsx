@@ -97,7 +97,14 @@ export function SectionCard({
   const hasNotes = notesEnabled && notes.getNote(sectionKey).trim().length > 0;
 
   return (
-    <section className="rounded-xl border border-black/5 bg-white/60 p-5">
+    <section
+      className="relative rounded-xl border border-[rgba(0,179,65,0.25)] bg-white/60 p-5 shadow-[0_0_12px_rgba(0,179,65,0.08)]"
+    >
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-x-0 top-0 h-[3px] rounded-t-xl"
+        style={{ background: "linear-gradient(90deg, #00B341, #00D94E)" }}
+      />
       <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
         <div>
           <h3 className="text-base font-bold text-navy">{title}</h3>
@@ -110,14 +117,13 @@ export function SectionCard({
               type="button"
               onClick={() => setNotesOpen((open) => !open)}
               aria-expanded={notesOpen}
-              className={`flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs font-semibold transition-colors ${
-                hasNotes
-                  ? "border-green bg-green text-white hover:bg-green-dark"
-                  : "border-neutral-300 text-navy hover:border-navy"
+              aria-label="Notes"
+              className={`flex items-center gap-1.5 rounded-md border border-[rgba(0,179,65,0.3)] px-2.5 py-1.5 text-xs font-semibold text-navy transition-colors ${
+                hasNotes ? "bg-[rgba(0,179,65,0.1)]" : "hover:bg-[rgba(0,179,65,0.05)]"
               }`}
             >
-              <NotepadIcon className="h-3.5 w-3.5" />
-              Notes
+              <NotepadIcon className="h-3.5 w-3.5 text-green" />
+              {hasNotes && <span>has content</span>}
             </button>
           )}
         </div>
