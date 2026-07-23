@@ -10,12 +10,16 @@ import { cacheKeys } from "@/lib/cache/cacheKeys";
 import { withTimeout } from "@/lib/withTimeout";
 import { CreateBrandForm } from "@/components/CreateBrandForm";
 import { RefreshDataButton } from "@/components/RefreshDataButton";
+import { DeleteConfirmButton } from "@/components/DeleteConfirmButton";
+import { useRole } from "@/components/RoleContext";
+import { deleteBrand } from "@/app/dashboard/actions";
 import type { BrandRow } from "@/types/database";
 
 const CACHE_KEY = cacheKeys.brandList();
 const FETCH_TIMEOUT_MS = 10_000;
 
 export default function DashboardPage() {
+  const { isAdmin, isTeam } = useRole();
   const cacheEntry = useLocalCacheEntry<BrandRow[]>(CACHE_KEY);
   const [fetching, setFetching] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -91,6 +95,14 @@ export default function DashboardPage() {
     await fetchFresh();
   }
 
+  async function handleDeleteBrand(brandId: string) {
+    const result = await deleteBrand(brandId);
+    if (result.error) throw new Error(result.error);
+    clearCache(CACHE_KEY);
+    clearCache(cacheKeys.auditList(brandId));
+    await fetchFresh();
+  }
+
   const brands = cacheEntry?.data ?? null;
 
   return (
@@ -102,7 +114,7 @@ export default function DashboardPage() {
         </div>
         <div className="flex items-center gap-3">
           <RefreshDataButton cachedAt={cacheEntry?.cachedAt ?? null} refreshing={fetching} onRefresh={handleRefresh} />
-          <CreateBrandForm onCreated={handleBrandCreated} />
+          {(isAdmin || isTeam) && <CreateBrandForm onCreated={handleBrandCreated} />}
         </div>
       </div>
 
@@ -127,19 +139,29 @@ export default function DashboardPage() {
       ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {brands.map((brand) => (
-            <Link
+            <div
               key={brand.id}
-              href={`/dashboard/${brand.id}`}
-              className="group rounded-xl border border-black/5 bg-white p-5 shadow-sm transition-shadow hover:shadow-md"
+              className="group relative rounded-xl border border-black/5 bg-white p-5 shadow-sm transition-shadow hover:shadow-md"
             >
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-navy text-sm font-bold text-white">
-                {brand.name.slice(0, 2).toUpperCase()}
-              </div>
-              <p className="mt-3 font-semibold text-navy group-hover:text-green">{brand.name}</p>
-              <p className="mt-1 text-xs text-neutral-400">
-                Created {new Date(brand.created_at).toLocaleDateString()}
-              </p>
-            </Link>
+              <Link href={`/dashboard/${brand.id}`} className="block">
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-navy text-sm font-bold text-white">
+                  {brand.name.slice(0, 2).toUpperCase()}
+                </div>
+                <p className="mt-3 pr-14 font-semibold text-navy group-hover:text-green">{brand.name}</p>
+                <p className="mt-1 text-xs text-neutral-400">
+                  Created {new Date(brand.created_at).toLocaleDateString()}
+                </p>
+              </Link>
+              {isAdmin && (
+                <div className="absolute right-3 top-3">
+                  <DeleteConfirmButton
+                    itemName={brand.name}
+                    itemLabel="brand"
+                    onConfirm={() => handleDeleteBrand(brand.id)}
+                  />
+                </div>
+              )}
+            </div>
           ))}
         </div>
       )}

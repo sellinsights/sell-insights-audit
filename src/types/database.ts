@@ -16,6 +16,7 @@ import type {
   BrandedSearchTermRpcRow,
   BrandedSplitRpcRow,
   LabeledMetricsRpcRow,
+  ListUserRpcRow,
   OpportunityRpcRow,
   SummaryKpisRpcRow,
   TopAsinRpcRow,
@@ -23,6 +24,12 @@ import type {
 } from "./rpc";
 
 export type AuditStatus = "draft" | "processing" | "complete";
+/** admin: full access + user management + delete. team: full data access,
+ * no delete, no user management. client: read-only, brand-scoped via
+ * client_brand_access. `null` (no row in user_roles) means no access yet —
+ * every RLS policy and every role check in the app treats it as the most
+ * restrictive state, not as a fallback to any particular role. */
+export type UserRole = "admin" | "team" | "client";
 export type AuditFileType =
   | "business_report"
   | "bulk_ads"
@@ -172,6 +179,20 @@ export type AuditNoteRow = {
   updated_at: string;
 };
 
+export type UserRoleRow = {
+  id: string;
+  user_id: string;
+  role: UserRole;
+  created_at: string;
+};
+
+export type ClientBrandAccessRow = {
+  id: string;
+  user_id: string;
+  brand_id: string;
+  created_at: string;
+};
+
 type TableDef<Row, Insert, Update = Partial<Insert>> = {
   Row: Row;
   Insert: Insert;
@@ -234,6 +255,14 @@ export type Database = {
         AuditNoteRow,
         Omit<AuditNoteRow, "id" | "updated_at"> & Partial<Pick<AuditNoteRow, "id" | "updated_at">>
       >;
+      user_roles: TableDef<
+        UserRoleRow,
+        Omit<UserRoleRow, "id" | "created_at"> & Partial<Pick<UserRoleRow, "id" | "created_at">>
+      >;
+      client_brand_access: TableDef<
+        ClientBrandAccessRow,
+        Omit<ClientBrandAccessRow, "id" | "created_at"> & Partial<Pick<ClientBrandAccessRow, "id" | "created_at">>
+      >;
     };
     Views: Record<string, never>;
     Functions: {
@@ -279,6 +308,7 @@ export type Database = {
         { p_audit_id: string; p_ad_type?: string; p_term_type?: string; p_limit?: number; p_offset?: number },
         OpportunityRpcRow[]
       >;
+      fn_list_users: FunctionDef<Record<string, never>, ListUserRpcRow[]>;
     };
   };
 };

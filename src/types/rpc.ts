@@ -110,3 +110,11 @@ export interface OpportunityRpcRow {
   cvr: number | null;
   total_count: number;
 }
+
+/** fn_list_users — role is null for a user with no user_roles row yet. */
+export interface ListUserRpcRow {
+  id: string;
+  email: string | null;
+  created_at: string;
+  role: string | null;
+}

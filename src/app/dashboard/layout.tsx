@@ -1,5 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
+import { fetchUserRole } from "@/lib/data/roles";
 import { DashboardHeader } from "@/components/DashboardHeader";
+import { RoleProvider } from "@/components/RoleContext";
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   console.time("[PERF] dashboard layout getSession");
@@ -13,10 +15,18 @@ export default async function DashboardLayout({ children }: { children: React.Re
   const user = session?.user ?? null;
   console.timeEnd("[PERF] dashboard layout getSession");
 
+  // Fetched once per navigation to this layout (not per-page) and provided
+  // via context — every role-gated button/page reads from RoleProvider
+  // instead of re-fetching. This is a real DB query (RLS-protected), unlike
+  // the local-only getSession() above.
+  const role = user ? await fetchUserRole(supabase, user.id) : null;
+
   return (
-    <div className="flex min-h-screen flex-col bg-background">
-      <DashboardHeader userEmail={user?.email ?? null} />
-      <main className="w-full flex-1 px-4 py-8 sm:px-6">{children}</main>
-    </div>
+    <RoleProvider role={role}>
+      <div className="flex min-h-screen flex-col bg-background">
+        <DashboardHeader userEmail={user?.email ?? null} role={role} />
+        <main className="w-full flex-1 px-4 py-8 sm:px-6">{children}</main>
+      </div>
+    </RoleProvider>
   );
 }

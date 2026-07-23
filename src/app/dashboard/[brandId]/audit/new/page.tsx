@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
+import { useRole } from "@/components/RoleContext";
 import { bulkInsert } from "@/lib/supabase/bulkInsert";
 import { uploadFileWithProgress } from "@/lib/supabase/uploadWithProgress";
 import { parseBusinessReport } from "@/lib/parsing/businessReport";
@@ -35,6 +36,17 @@ const UPLOAD_LABELS: Record<AuditFileType, string> = {
 export default function NewAuditPage() {
   const { brandId } = useParams<{ brandId: string }>();
   const router = useRouter();
+  const { isClient } = useRole();
+
+  // Clients are read-only — RLS already blocks the underlying inserts, but
+  // this keeps them from ever seeing the upload form at all. Deferred via
+  // setTimeout for the same reason every other fetch-kicking effect in this
+  // app is: never run synchronously inside the effect body.
+  useEffect(() => {
+    if (!isClient) return;
+    const timeoutId = setTimeout(() => router.replace(`/dashboard/${brandId}`), 0);
+    return () => clearTimeout(timeoutId);
+  }, [isClient, brandId, router]);
 
   const [title, setTitle] = useState("");
   const [marketplace, setMarketplace] = useState("US");
@@ -221,6 +233,14 @@ export default function NewAuditPage() {
       setRunning(false);
       setSteps((prev) => prev.map((s) => (s.status === "active" ? { ...s, status: "error" } : s)));
     }
+  }
+
+  if (isClient) {
+    return (
+      <div className="flex min-h-[50vh] items-center justify-center">
+        <div className="h-6 w-6 animate-spin rounded-full border-2 border-green border-t-transparent" />
+      </div>
+    );
   }
 
   return (

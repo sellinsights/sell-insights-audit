@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { useNotesContext } from "./NotesContext";
+import { useRole } from "./RoleContext";
 
 const NOTES_MIN_HEIGHT_PX = 200; // ~10 lines
 
@@ -24,7 +25,7 @@ function NotepadIcon({ className = "" }: { className?: string }) {
   );
 }
 
-function NotesPanel({ sectionKey, open }: { sectionKey: string; open: boolean }) {
+function NotesPanel({ sectionKey, open, readOnly }: { sectionKey: string; open: boolean; readOnly: boolean }) {
   const notes = useNotesContext();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const value = notes?.getNote(sectionKey) ?? "";
@@ -41,8 +42,8 @@ function NotesPanel({ sectionKey, open }: { sectionKey: string; open: boolean })
   // from cache) — not just on keystrokes, so pre-existing multi-line notes
   // are sized correctly the instant the panel appears.
   useEffect(() => {
-    if (open) resize();
-  }, [open, value, resize]);
+    if (open && !readOnly) resize();
+  }, [open, value, readOnly, resize]);
 
   return (
     <div
@@ -52,22 +53,36 @@ function NotesPanel({ sectionKey, open }: { sectionKey: string; open: boolean })
     >
       <div className="min-h-0">
         <div className="rounded-lg border border-neutral-200 bg-[#F8F9FA] p-3">
-          <textarea
-            ref={textareaRef}
-            value={value}
-            onChange={(e) => {
-              notes?.setNote(sectionKey, e.target.value);
-              resize();
-            }}
-            onInput={resize}
-            placeholder="Add notes for this section…"
-            style={{ minHeight: NOTES_MIN_HEIGHT_PX }}
-            className="w-full resize-none overflow-hidden border-none bg-transparent text-sm leading-relaxed text-neutral-800 outline-none placeholder:text-neutral-400"
-          />
-          <div className="mt-1 h-4 text-right text-xs text-neutral-400">
-            {status === "saving" && "Saving…"}
-            {status === "saved" && "Saved"}
-          </div>
+          {readOnly ? (
+            // Clients get read-only text, never an editable <textarea> — there's
+            // no write path for them to reach (saveAuditNote is also blocked by
+            // RLS), but this keeps the UI itself from suggesting they can edit.
+            <div
+              style={{ minHeight: NOTES_MIN_HEIGHT_PX }}
+              className="whitespace-pre-wrap text-sm leading-relaxed text-neutral-800"
+            >
+              {value || <span className="text-neutral-400">No notes for this section.</span>}
+            </div>
+          ) : (
+            <>
+              <textarea
+                ref={textareaRef}
+                value={value}
+                onChange={(e) => {
+                  notes?.setNote(sectionKey, e.target.value);
+                  resize();
+                }}
+                onInput={resize}
+                placeholder="Add notes for this section…"
+                style={{ minHeight: NOTES_MIN_HEIGHT_PX }}
+                className="w-full resize-none overflow-hidden border-none bg-transparent text-sm leading-relaxed text-neutral-800 outline-none placeholder:text-neutral-400"
+              />
+              <div className="mt-1 h-4 text-right text-xs text-neutral-400">
+                {status === "saving" && "Saving…"}
+                {status === "saved" && "Saved"}
+              </div>
+            </>
+          )}
         </div>
       </div>
     </div>
@@ -99,9 +114,13 @@ export function SectionCard({
   sectionKey?: string;
 }) {
   const notes = useNotesContext();
+  const { isClient } = useRole();
   const [notesOpen, setNotesOpen] = useState(false);
-  const notesEnabled = !!sectionKey && !!notes;
-  const hasNotes = notesEnabled && notes.getNote(sectionKey).trim().length > 0;
+  const hasNotes = !!sectionKey && !!notes && notes.getNote(sectionKey).trim().length > 0;
+  // Clients are read-only: nothing to write, so no point showing the button
+  // for a section that has no notes to read either. Admin/team always see it
+  // (to write a first note).
+  const notesEnabled = !!sectionKey && !!notes && (!isClient || hasNotes);
 
   return (
     <section
@@ -137,7 +156,7 @@ export function SectionCard({
         </div>
       </div>
 
-      {notesEnabled && <NotesPanel sectionKey={sectionKey} open={notesOpen} />}
+      {notesEnabled && <NotesPanel sectionKey={sectionKey} open={notesOpen} readOnly={isClient} />}
 
       {children}
     </section>

@@ -44,7 +44,15 @@
       "Bash(kill 12771)",
       "Bash(kill 15892)",
       "Bash(kill 16458)",
-      "Bash(kill 17015)"
+      "Bash(kill 17015)",
+      "Bash(npm install *)",
+      "Bash(kill 17816)",
+      "Bash(curl -s -o /dev/null -w \"team \\(should redirect\\): %{http_code}\\\\n\" http://localhost:3000/dashboard/team)",
+      "Bash(grep -n \"    from by_type$\" /Users/hasanqayyum/sell-insights-audit/supabase-functions.sql)",
+      "Bash(grep -n \"from filtered$\" /Users/hasanqayyum/sell-insights-audit/supabase-functions.sql)",
+      "Bash(grep -n \"total_count bigint$\" /Users/hasanqayyum/sell-insights-audit/supabase-functions.sql)",
+      "Bash(grep -n \"^stable$\" -A1 /Users/hasanqayyum/sell-insights-audit/supabase-functions.sql)",
+      "Bash(kill 26070)"
     ]
   }
 }

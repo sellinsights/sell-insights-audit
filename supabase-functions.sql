@@ -11,10 +11,22 @@
 -- Paste this whole file into the Supabase SQL editor and run it once. It's
 -- safe to re-run (every object uses CREATE OR REPLACE / IF NOT EXISTS).
 --
--- SECURITY: every function below runs with the caller's own privileges
--- (Postgres default — this file never uses SECURITY DEFINER), so the exact
--- same Row Level Security policies from supabase-schema.sql still apply.
--- A user who doesn't own the audit gets empty results, exactly like today.
+-- SECURITY: every function below is SECURITY DEFINER — it runs with the
+-- function owner's privileges and bypasses RLS on the tables it queries —
+-- but every one starts its final SELECT with `public.can_view_audit(p_audit_id)`
+-- (defined in the RBAC section of supabase-schema.sql: true for admin/team,
+-- or a client with a client_brand_access grant for this audit's brand). A
+-- caller without access gets an empty result set, same as the old
+-- RLS-enforced behavior — the check just moved from "implicit, via RLS on
+-- every underlying table" to "explicit, once, at the top of each function."
+--
+-- This was originally SECURITY INVOKER (relying on RLS alone), which is
+-- fragile: any change to the RLS policies on sp_campaign_data,
+-- business_report_data, etc. (as happened when RBAC replaced the old
+-- open-to-any-authenticated-user policies with role/grant-scoped ones)
+-- changes these functions' behavior as a side effect, function-by-function,
+-- table-by-table, with no single place to audit or reason about it.
+-- SECURITY DEFINER + one explicit guard per function fixes that permanently.
 --
 -- NOTE on two function signatures vs. the original spec: fn_wasted_spend and
 -- fn_bleeders were requested with a single threshold parameter, but the
@@ -117,6 +129,8 @@ returns table (
 )
 language sql
 stable
+security definer
+set search_path = public
 as $$
   with br as (
     select
@@ -151,7 +165,8 @@ as $$
     case when br.total_revenue > 0 then (ppc.total_spend / br.total_revenue) * 100 else null end,
     (ppc.total_orders / nullif(ppc.total_clicks, 0)) * 100,
     br.total_units
-  from br, ppc;
+  from br, ppc
+  where public.can_view_audit(p_audit_id);
 $$;
 
 
@@ -187,6 +202,8 @@ returns table (
 )
 language sql
 stable
+security definer
+set search_path = public
 as $$
   with sp_by_asin as (
     select asin,
@@ -227,6 +244,7 @@ as $$
   cross join totals t
   left join sp_by_asin sba on sba.asin = br.child_asin
   where br.audit_id = p_audit_id and br.child_asin is not null
+    and public.can_view_audit(p_audit_id)
   order by coalesce(br.units_ordered, 0) desc
   limit p_limit;
 $$;
@@ -254,6 +272,8 @@ returns table (
 )
 language sql
 stable
+security definer
+set search_path = public
 as $$
   with filtered as (
     select asin, impressions, clicks, orders, units, spend, sales
@@ -281,6 +301,7 @@ as $$
   from by_asin b
   cross join totals t
   cross join lateral public.fn_derive_metrics(b.clicks, b.orders, b.spend, b.sales, t.spend, t.sales) d
+  where public.can_view_audit(p_audit_id)
   order by b.spend desc;
 $$;
 
@@ -297,6 +318,8 @@ returns table (
 )
 language sql
 stable
+security definer
+set search_path = public
 as $$
   with by_type as (
     select 'SP' as label,
@@ -332,7 +355,8 @@ as $$
          d.cpc, d.acos, d.roas, d.cvr, d.pct_of_spend, d.pct_of_sales
   from combined c
   cross join grand g
-  cross join lateral public.fn_derive_metrics(c.clicks, c.orders, c.spend, c.sales, g.spend, g.sales) d;
+  cross join lateral public.fn_derive_metrics(c.clicks, c.orders, c.spend, c.sales, g.spend, g.sales) d
+  where public.can_view_audit(p_audit_id);
 $$;
 
 
@@ -348,6 +372,8 @@ returns table (
 )
 language sql
 stable
+security definer
+set search_path = public
 as $$
   with campaigns as (
     select * from public.sp_campaign_data
@@ -378,7 +404,8 @@ as $$
          d.cpc, d.acos, d.roas, d.cvr, d.pct_of_spend, d.pct_of_sales
   from combined c
   cross join grand g
-  cross join lateral public.fn_derive_metrics(c.clicks, c.orders, c.spend, c.sales, g.spend, g.sales) d;
+  cross join lateral public.fn_derive_metrics(c.clicks, c.orders, c.spend, c.sales, g.spend, g.sales) d
+  where public.can_view_audit(p_audit_id);
 $$;
 
 
@@ -401,6 +428,8 @@ returns table (
 )
 language sql
 stable
+security definer
+set search_path = public
 as $$
   with match_types(label, ord) as (
     select * from (values
@@ -454,6 +483,7 @@ as $$
   from combined c
   cross join grand g
   cross join lateral public.fn_derive_metrics(c.clicks, c.orders, c.spend, c.sales, g.spend, g.sales) d
+  where public.can_view_audit(p_audit_id)
   order by c.ord;
 $$;
 
@@ -470,6 +500,8 @@ returns table (
 )
 language sql
 stable
+security definer
+set search_path = public
 as $$
   with categories(label, ord) as (
     values ('Top of Search',1), ('Rest of Search',2), ('Product Pages',3),
@@ -508,6 +540,7 @@ as $$
   from combined c
   cross join grand g
   cross join lateral public.fn_derive_metrics(c.clicks, c.orders, c.spend, c.sales, g.spend, g.sales) d
+  where public.can_view_audit(p_audit_id)
   order by c.ord;
 $$;
 
@@ -524,6 +557,8 @@ returns table (
 )
 language sql
 stable
+security definer
+set search_path = public
 as $$
   with categories(label, ord) as (
     values ('Fixed Bid',1), ('Up and Down',2), ('Down Only',3)
@@ -561,6 +596,7 @@ as $$
   from combined c
   cross join grand g
   cross join lateral public.fn_derive_metrics(c.clicks, c.orders, c.spend, c.sales, g.spend, g.sales) d
+  where public.can_view_audit(p_audit_id)
   order by c.ord;
 $$;
 
@@ -577,6 +613,8 @@ returns table (
 )
 language sql
 stable
+security definer
+set search_path = public
 as $$
   with categories(label, ord) as (
     values ('CPC',1), ('VCPM',2)
@@ -614,6 +652,7 @@ as $$
   from combined c
   cross join grand g
   cross join lateral public.fn_derive_metrics(c.clicks, c.orders, c.spend, c.sales, g.spend, g.sales) d
+  where public.can_view_audit(p_audit_id)
   order by c.ord;
 $$;
 
@@ -634,6 +673,8 @@ returns table (
 )
 language sql
 stable
+security definer
+set search_path = public
 as $$
   with keywords as (
     select lower(trim(keyword)) as kw
@@ -694,7 +735,8 @@ as $$
   from combined c
   cross join grand g
   cross join keyword_presence kp
-  cross join lateral public.fn_derive_metrics(c.clicks, c.orders, c.spend, c.sales, g.spend, g.sales) d;
+  cross join lateral public.fn_derive_metrics(c.clicks, c.orders, c.spend, c.sales, g.spend, g.sales) d
+  where public.can_view_audit(p_audit_id);
 $$;
 
 
@@ -716,6 +758,8 @@ returns table (
 )
 language sql
 stable
+security definer
+set search_path = public
 as $$
   with keywords as (
     select lower(trim(keyword)) as kw
@@ -742,7 +786,7 @@ as $$
   select customer_search_term, coalesce(spend, 0)::numeric, coalesce(orders, 0)::int,
          coalesce(clicks, 0)::int, acos, roas
   from classified
-  where is_branded = p_branded
+  where is_branded = p_branded and public.can_view_audit(p_audit_id)
   order by coalesce(spend, 0) desc
   limit p_limit offset p_offset;
 $$;
@@ -765,6 +809,8 @@ returns table (
 )
 language sql
 stable
+security definer
+set search_path = public
 as $$
   with filtered as (
     select coalesce(final_match_type, 'Unclassified') as match_type, spend, clicks, cpc
@@ -807,6 +853,7 @@ as $$
     union all
     select * from grand
   ) as combined
+  where public.can_view_audit(p_audit_id)
   order by (combined.match_type = 'Grand Total'), combined.spend desc;
 $$;
 
@@ -832,6 +879,8 @@ returns table (
 )
 language sql
 stable
+security definer
+set search_path = public
 as $$
   with filtered as (
     select customer_search_term, spend, clicks, cpc, search_term_type
@@ -858,6 +907,7 @@ as $$
     case when coalesce(clicks, 0) > 0 then spend / clicks else null end,
     coalesce(cpc, case when coalesce(clicks, 0) > 0 then spend / clicks else null end)
   from filtered
+  where public.can_view_audit(p_audit_id)
   order by coalesce(spend, 0) desc
   limit p_limit offset p_offset;
 $$;
@@ -894,6 +944,8 @@ returns table (
 )
 language sql
 stable
+security definer
+set search_path = public
 as $$
   with base as (
     select customer_search_term, impressions, clicks, orders, spend, sales, search_term_type,
@@ -925,6 +977,7 @@ as $$
     case when coalesce(clicks, 0) > 0 then (orders::numeric / clicks) * 100 else null end,
     count(*) over ()::bigint
   from filtered
+  where public.can_view_audit(p_audit_id)
   order by coalesce(spend, 0) desc
   limit p_limit offset p_offset;
 $$;
@@ -943,6 +996,8 @@ returns table (
 )
 language sql
 stable
+security definer
+set search_path = public
 as $$
   with base as (
     select customer_search_term, impressions, clicks, orders, spend, sales, search_term_type,
@@ -974,6 +1029,7 @@ as $$
     case when coalesce(clicks, 0) > 0 then (orders::numeric / clicks) * 100 else null end,
     count(*) over ()::bigint
   from filtered
+  where public.can_view_audit(p_audit_id)
   order by coalesce(spend, 0) desc
   limit p_limit offset p_offset;
 $$;
@@ -992,6 +1048,8 @@ returns table (
 )
 language sql
 stable
+security definer
+set search_path = public
 as $$
   with base as (
     select customer_search_term, impressions, clicks, orders, spend, sales, search_term_type,
@@ -1023,6 +1081,7 @@ as $$
     case when coalesce(clicks, 0) > 0 then (orders::numeric / clicks) * 100 else null end,
     count(*) over ()::bigint
   from filtered
+  where public.can_view_audit(p_audit_id)
   order by coalesce(spend, 0) desc
   limit p_limit offset p_offset;
 $$;

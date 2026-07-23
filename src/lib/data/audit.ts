@@ -142,15 +142,71 @@ export function normalizeAuditData<T extends { audit: AuditRow } & Partial<Audit
   };
 }
 
+type RpcOutcome = "ok" | "empty" | "error";
+
+interface RpcLogEntry {
+  section: string;
+  outcome: RpcOutcome;
+  detail: string;
+}
+
+/** Wraps one RPC call so its outcome (succeeded with data / succeeded but
+ * empty / failed) is recorded for the summary table fetchAuditData prints at
+ * the end, regardless of which of the 16 parallel calls it is. "Empty" is
+ * tracked separately from "error" on purpose — an empty section (an audit
+ * genuinely has no SD campaigns, say) is normal, but a wall of empty
+ * sections that should have data is exactly the RLS-misconfiguration
+ * symptom this exists to make visible at a glance. */
+function trackRpc<T>(
+  log: RpcLogEntry[],
+  section: string,
+  promise: Promise<T>,
+  fallback: T,
+  isEmpty: (value: T) => boolean
+): Promise<T> {
+  return promise
+    .then((value) => {
+      log.push({ section, outcome: isEmpty(value) ? "empty" : "ok", detail: isEmpty(value) ? "0 rows / all-zero" : "has data" });
+      return value;
+    })
+    .catch((err: unknown) => {
+      console.error(`[PERF] ${section} failed, defaulting to empty:`, err);
+      log.push({ section, outcome: "error", detail: err instanceof Error ? err.message : String(err) });
+      return fallback;
+    });
+}
+
+function logRpcOutcomes(auditId: string, log: RpcLogEntry[]): void {
+  console.log(`[PERF] fetchAuditData ${auditId} — RPC call outcomes:`);
+  console.table(log.map((e) => ({ section: e.section, outcome: e.outcome.toUpperCase(), detail: e.detail })));
+  const failed = log.filter((e) => e.outcome === "error");
+  const empty = log.filter((e) => e.outcome === "empty");
+  if (failed.length > 0) {
+    console.warn(
+      `[PERF] ${failed.length}/${log.length} RPC call(s) FAILED and fell back to empty:`,
+      failed.map((e) => e.section)
+    );
+  }
+  if (empty.length > 0) {
+    console.log(
+      `[PERF] ${empty.length}/${log.length} RPC call(s) succeeded but returned no data (may be genuinely empty, or a sign of an RLS/access issue if unexpected):`,
+      empty.map((e) => e.section)
+    );
+  }
+}
+
 /** Loads the whole dashboard as pre-aggregated rows — one RPC call per
  * section, all in parallel, instead of downloading every raw table row and
  * computing KPIs in the browser. Each RPC does its filtering/grouping/summing
  * inside Postgres and returns only the handful of rows the UI renders.
  *
- * Every call below has a `.catch()` fallback: if one RPC fails (a function
- * that isn't deployed yet, a transient error, RLS hiding a table, etc.) that
- * one section degrades to an empty/zeroed state instead of failing the
- * entire dashboard load — the failure is still logged so it's diagnosable. */
+ * Every call below has a `.catch()` fallback (via trackRpc): if one RPC
+ * fails (a function that isn't deployed yet, a transient error, an RLS/access
+ * issue, etc.) that one section degrades to an empty/zeroed state instead of
+ * failing the entire dashboard load — the failure is still logged, and
+ * logRpcOutcomes() prints a single table at the end showing every section's
+ * status so a partial-data page is diagnosable at a glance instead of
+ * requiring a scroll through 16 separate console.error calls. */
 export async function fetchAuditData(supabase: SupabaseClient<Database>, auditId: string): Promise<AuditData | null> {
   const perfLabel = `[PERF] fetchAuditData ${auditId}`;
   console.time(perfLabel);
@@ -170,6 +226,15 @@ export async function fetchAuditData(supabase: SupabaseClient<Database>, auditId
     if (auditError || !audit) return null;
 
     console.time("[PERF] fetchAuditData all RPC sections (parallel)");
+    const rpcLog: RpcLogEntry[] = [];
+    const isEmptyKpis = (k: OverallKpis) => k.totalRevenue === 0 && k.totalSpend === 0 && k.totalUnits === 0;
+    const isEmptyArray = (rows: unknown[]) => rows.length === 0;
+    const isEmptySection = (s: LabeledSection) => s.rows.length === 0;
+    const isEmptyWastedSpend = (s: WastedSpendSection) => s.rows.length === 0;
+    const isEmptyBranded = (b: AuditData["brandedSplit"]) =>
+      b.grandTotal.spend === 0 && b.grandTotal.searchTermCount === 0;
+    const isEmptyNotes = (n: Record<string, string>) => Object.keys(n).length === 0;
+
     const [
       kpis,
       topAsins,
@@ -188,81 +253,91 @@ export async function fetchAuditData(supabase: SupabaseClient<Database>, auditId
       sbOver5,
       notes,
     ] = await Promise.all([
-      fetchSummaryKpis(supabase, auditId).catch((err) => {
-        console.error("[PERF] fetchSummaryKpis failed, defaulting to empty:", err);
-        return emptyKpis();
-      }),
-      fetchTopAsins(supabase, auditId).catch((err) => {
-        console.error("[PERF] fetchTopAsins failed, defaulting to empty:", err);
-        return [];
-      }),
-      fetchAdvertisedAsinPerformance(supabase, auditId).catch((err) => {
-        console.error("[PERF] fetchAdvertisedAsinPerformance failed, defaulting to empty:", err);
-        return [];
-      }),
-      fetchAdTypeSplit(supabase, auditId).catch((err) => {
-        console.error("[PERF] fetchAdTypeSplit failed, defaulting to empty:", err);
-        return emptyLabeledSection();
-      }),
-      fetchAutoManualSplit(supabase, auditId).catch((err) => {
-        console.error("[PERF] fetchAutoManualSplit failed, defaulting to empty:", err);
-        return emptyLabeledSection();
-      }),
-      fetchMatchTypeAnalysis(supabase, auditId, "sp").catch((err) => {
-        console.error("[PERF] fetchMatchTypeAnalysis(sp) failed, defaulting to empty:", err);
-        return emptyLabeledSection();
-      }),
-      fetchMatchTypeAnalysis(supabase, auditId, "sb").catch((err) => {
-        console.error("[PERF] fetchMatchTypeAnalysis(sb) failed, defaulting to empty:", err);
-        return emptyLabeledSection();
-      }),
-      fetchPlacements(supabase, auditId).catch((err) => {
-        console.error("[PERF] fetchPlacements failed, defaulting to empty:", err);
-        return emptyLabeledSection();
-      }),
-      fetchBiddingStrategy(supabase, auditId).catch((err) => {
-        console.error("[PERF] fetchBiddingStrategy failed, defaulting to empty:", err);
-        return emptyLabeledSection();
-      }),
+      trackRpc(rpcLog, "fn_summary_kpis", fetchSummaryKpis(supabase, auditId), emptyKpis(), isEmptyKpis),
+      trackRpc(rpcLog, "fn_top_asins", fetchTopAsins(supabase, auditId), [], isEmptyArray),
+      trackRpc(
+        rpcLog,
+        "fn_advertised_asin_performance",
+        fetchAdvertisedAsinPerformance(supabase, auditId),
+        [],
+        isEmptyArray
+      ),
+      trackRpc(rpcLog, "fn_ad_type_split", fetchAdTypeSplit(supabase, auditId), emptyLabeledSection(), isEmptySection),
+      trackRpc(
+        rpcLog,
+        "fn_auto_manual_split",
+        fetchAutoManualSplit(supabase, auditId),
+        emptyLabeledSection(),
+        isEmptySection
+      ),
+      trackRpc(
+        rpcLog,
+        "fn_match_type_analysis(sp)",
+        fetchMatchTypeAnalysis(supabase, auditId, "sp"),
+        emptyLabeledSection(),
+        isEmptySection
+      ),
+      trackRpc(
+        rpcLog,
+        "fn_match_type_analysis(sb)",
+        fetchMatchTypeAnalysis(supabase, auditId, "sb"),
+        emptyLabeledSection(),
+        isEmptySection
+      ),
+      trackRpc(rpcLog, "fn_placements", fetchPlacements(supabase, auditId), emptyLabeledSection(), isEmptySection),
+      trackRpc(
+        rpcLog,
+        "fn_bidding_strategy",
+        fetchBiddingStrategy(supabase, auditId),
+        emptyLabeledSection(),
+        isEmptySection
+      ),
       // fn_sd_cost_type is the newest RPC — audits created (or dashboards
       // cached) before it existed must still render fine, and a database
       // that hasn't had supabase-functions.sql re-run yet won't have this
       // function at all, so this is the most likely one to fail in practice.
-      fetchSdCostType(supabase, auditId).catch((err) => {
-        console.error(
-          "[PERF] fetchSdCostType failed (function may not be deployed yet, or this audit predates cost_type) — defaulting to empty:",
-          err
-        );
-        return emptyLabeledSection();
-      }),
-      fetchBrandedSplit(supabase, auditId, "both").catch((err) => {
-        console.error("[PERF] fetchBrandedSplit failed, defaulting to empty:", err);
-        return emptyBrandedSplit();
-      }),
-      fetchWastedSpend(supabase, auditId, "sp", 1, 5).catch((err) => {
-        console.error("[PERF] fetchWastedSpend(sp,1-5) failed, defaulting to empty:", err);
-        return emptyWastedSpendSection();
-      }),
-      fetchWastedSpend(supabase, auditId, "sp", 6, null).catch((err) => {
-        console.error("[PERF] fetchWastedSpend(sp,6+) failed, defaulting to empty:", err);
-        return emptyWastedSpendSection();
-      }),
-      fetchWastedSpend(supabase, auditId, "sb", 1, 5).catch((err) => {
-        console.error("[PERF] fetchWastedSpend(sb,1-5) failed, defaulting to empty:", err);
-        return emptyWastedSpendSection();
-      }),
-      fetchWastedSpend(supabase, auditId, "sb", 6, null).catch((err) => {
-        console.error("[PERF] fetchWastedSpend(sb,6+) failed, defaulting to empty:", err);
-        return emptyWastedSpendSection();
-      }),
+      trackRpc(rpcLog, "fn_sd_cost_type", fetchSdCostType(supabase, auditId), emptyLabeledSection(), isEmptySection),
+      trackRpc(
+        rpcLog,
+        "fn_branded_split",
+        fetchBrandedSplit(supabase, auditId, "both"),
+        emptyBrandedSplit(),
+        isEmptyBranded
+      ),
+      trackRpc(
+        rpcLog,
+        "fn_wasted_spend(sp,1-5)",
+        fetchWastedSpend(supabase, auditId, "sp", 1, 5),
+        emptyWastedSpendSection(),
+        isEmptyWastedSpend
+      ),
+      trackRpc(
+        rpcLog,
+        "fn_wasted_spend(sp,6+)",
+        fetchWastedSpend(supabase, auditId, "sp", 6, null),
+        emptyWastedSpendSection(),
+        isEmptyWastedSpend
+      ),
+      trackRpc(
+        rpcLog,
+        "fn_wasted_spend(sb,1-5)",
+        fetchWastedSpend(supabase, auditId, "sb", 1, 5),
+        emptyWastedSpendSection(),
+        isEmptyWastedSpend
+      ),
+      trackRpc(
+        rpcLog,
+        "fn_wasted_spend(sb,6+)",
+        fetchWastedSpend(supabase, auditId, "sb", 6, null),
+        emptyWastedSpendSection(),
+        isEmptyWastedSpend
+      ),
       // audit_notes is also new — a database that hasn't had
       // supabase-schema.sql re-run yet won't have this table.
-      fetchAuditNotes(supabase, auditId).catch((err) => {
-        console.error("[PERF] fetchAuditNotes failed (table may not be deployed yet) — defaulting to empty:", err);
-        return {};
-      }),
+      trackRpc(rpcLog, "audit_notes", fetchAuditNotes(supabase, auditId), {}, isEmptyNotes),
     ]);
     console.timeEnd("[PERF] fetchAuditData all RPC sections (parallel)");
+    logRpcOutcomes(auditId, rpcLog);
 
     return normalizeAuditData({
       audit,

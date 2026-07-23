@@ -4,8 +4,9 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Logo } from "@/components/Logo";
 import { signOut } from "@/app/login/actions";
+import type { UserRole } from "@/types/database";
 
-export function DashboardHeader({ userEmail }: { userEmail: string | null }) {
+export function DashboardHeader({ userEmail, role }: { userEmail: string | null; role: UserRole | null }) {
   const [scrolled, setScrolled] = useState(false);
 
   useEffect(() => {
@@ -28,7 +29,20 @@ export function DashboardHeader({ userEmail }: { userEmail: string | null }) {
           <Logo className="h-10 w-auto" />
         </Link>
         <div className="flex items-center gap-4">
+          {role === "admin" && (
+            <Link
+              href="/dashboard/team"
+              className="text-xs font-semibold text-neutral-500 hover:text-navy"
+            >
+              Team
+            </Link>
+          )}
           {userEmail && <span className="text-sm text-neutral-500">{userEmail}</span>}
+          {role === "client" && (
+            <span className="rounded-full bg-navy/5 px-2.5 py-1 text-xs font-semibold text-navy">
+              Client View
+            </span>
+          )}
           <form action={signOut}>
             <button
               type="submit"

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { fetchAuditData, fetchAuditUpdatedAt, fetchBrandName, normalizeAuditData, type AuditData } from "@/lib/data/audit";
 import { writeCache, clearCache } from "@/lib/cache/localCache";
@@ -11,6 +11,9 @@ import { cacheKeys } from "@/lib/cache/cacheKeys";
 import { withTimeout } from "@/lib/withTimeout";
 import { AuditDashboard } from "@/components/AuditDashboard";
 import { RefreshDataButton } from "@/components/RefreshDataButton";
+import { DeleteConfirmButton } from "@/components/DeleteConfirmButton";
+import { useRole } from "@/components/RoleContext";
+import { deleteAudit } from "@/app/dashboard/actions";
 import { NotesProvider } from "@/components/NotesContext";
 
 export interface AuditBundle extends AuditData {
@@ -32,6 +35,8 @@ function isAllEmpty(data: AuditData): boolean {
 }
 
 export default function AuditPage() {
+  const { isAdmin } = useRole();
+  const router = useRouter();
   const { brandId, auditId } = useParams<{ brandId: string; auditId: string }>();
   const cacheKey = cacheKeys.audit(auditId);
   const cacheEntry = useLocalCacheEntry<AuditBundle>(cacheKey);
@@ -149,6 +154,14 @@ export default function AuditPage() {
     clearCache(cacheKey);
   }
 
+  async function handleDeleteAudit() {
+    const result = await deleteAudit(auditId, brandId);
+    if (result.error) throw new Error(result.error);
+    clearCache(cacheKey);
+    clearCache(cacheKeys.auditList(brandId));
+    router.push(`/dashboard/${brandId}`);
+  }
+
   if (notFound) {
     return (
       <div className="rounded-xl border border-dashed border-neutral-300 bg-white p-12 text-center">
@@ -217,7 +230,12 @@ export default function AuditPage() {
             </span>
           )}
         </div>
-        <RefreshDataButton cachedAt={cacheEntry.cachedAt} refreshing={fetching} onRefresh={handleRefresh} />
+        <div className="flex items-center gap-3">
+          <RefreshDataButton cachedAt={cacheEntry.cachedAt} refreshing={fetching} onRefresh={handleRefresh} />
+          {isAdmin && (
+            <DeleteConfirmButton itemName={bundle.audit.title} itemLabel="audit" onConfirm={handleDeleteAudit} />
+          )}
+        </div>
       </div>
 
       {errorMessage && (

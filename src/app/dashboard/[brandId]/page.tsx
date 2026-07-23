@@ -10,6 +10,9 @@ import { useLocalCacheEntry } from "@/lib/cache/useLocalCacheEntry";
 import { cacheKeys } from "@/lib/cache/cacheKeys";
 import { withTimeout } from "@/lib/withTimeout";
 import { RefreshDataButton } from "@/components/RefreshDataButton";
+import { DeleteConfirmButton } from "@/components/DeleteConfirmButton";
+import { useRole } from "@/components/RoleContext";
+import { deleteAudit } from "@/app/dashboard/actions";
 import type { AuditRow, BrandRow } from "@/types/database";
 
 const STATUS_STYLES: Record<string, string> = {
@@ -26,6 +29,7 @@ interface BrandAuditsBundle {
 }
 
 export default function BrandAuditsPage() {
+  const { isAdmin, isTeam } = useRole();
   const { brandId } = useParams<{ brandId: string }>();
   const cacheKey = cacheKeys.auditList(brandId);
   const cacheEntry = useLocalCacheEntry<BrandAuditsBundle>(cacheKey);
@@ -116,6 +120,14 @@ export default function BrandAuditsPage() {
     clearCache(cacheKey);
   }
 
+  async function handleDeleteAudit(auditId: string) {
+    const result = await deleteAudit(auditId, brandId);
+    if (result.error) throw new Error(result.error);
+    clearCache(cacheKey);
+    clearCache(cacheKeys.audit(auditId));
+    await fetchFresh();
+  }
+
   if (notFound) {
     return (
       <div className="rounded-xl border border-dashed border-neutral-300 bg-white p-12 text-center">
@@ -160,12 +172,14 @@ export default function BrandAuditsPage() {
         <h1 className="text-xl font-bold text-navy">{brand.name} — Audits</h1>
         <div className="flex items-center gap-3">
           <RefreshDataButton cachedAt={cacheEntry.cachedAt} refreshing={fetching} onRefresh={handleRefresh} />
-          <Link
-            href={`/dashboard/${brandId}/audit/new`}
-            className="rounded-md bg-green px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-green-dark"
-          >
-            + New Audit
-          </Link>
+          {(isAdmin || isTeam) && (
+            <Link
+              href={`/dashboard/${brandId}/audit/new`}
+              className="rounded-md bg-green px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-green-dark"
+            >
+              + New Audit
+            </Link>
+          )}
         </div>
       </div>
 
@@ -181,6 +195,7 @@ export default function BrandAuditsPage() {
                 <th className="px-4 py-3">Title</th>
                 <th className="px-4 py-3">Status</th>
                 <th className="px-4 py-3">Created</th>
+                {isAdmin && <th className="px-4 py-3" />}
               </tr>
             </thead>
             <tbody>
@@ -204,6 +219,15 @@ export default function BrandAuditsPage() {
                   <td className="px-4 py-3 text-neutral-500">
                     {new Date(audit.created_at).toLocaleDateString()}
                   </td>
+                  {isAdmin && (
+                    <td className="px-4 py-3 text-right">
+                      <DeleteConfirmButton
+                        itemName={audit.title}
+                        itemLabel="audit"
+                        onConfirm={() => handleDeleteAudit(audit.id)}
+                      />
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>
